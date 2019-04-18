@@ -190,7 +190,7 @@ class Manager(object):
 
     # Connect to TVHeadend and establish connection (log in))
 
-    def getPvrStatusXML(self):
+    def __getPvrStatusXML(self):
 
         _attempts = self.__maxattempts
 
@@ -244,11 +244,56 @@ class Manager(object):
             tools.writeLog("Could not read XML tree from %s" % self.__server, level=xbmc.LOGERROR)
         return nodedata
 
+    def __calcNextSched(self):
+        self.__wakeUpUTRec = 0
+        self.__wakeUpUTEpg = 0
+        self.__wakeUpUT = 0
+        self.__wakeUp = None
+
+        __curTime = datetime.datetime.now()
+
+        _flags = isUSR
+        nodedata = self.readStatusXML('next')
+        if nodedata:
+            self.__wakeUp = (__curTime + datetime.timedelta(minutes=int(nodedata[0]) - self.__prerun)).replace(second=0)
+            self.__wakeUpUTRec = int(time.mktime(self.__wakeUp.timetuple()))
+            _flags |= isRES
+
+        __wakeEPG = None
+        if self.__epg_interval > 0:
+            __dayDelta = self.__epg_interval
+            if int(__curTime.strftime('%j')) % __dayDelta == 0:
+                __dayDelta = 0
+            __wakeEPG = (__curTime + datetime.timedelta(days=__dayDelta) -
+                         datetime.timedelta(days=int(__curTime.strftime('%j')) % self.__epg_interval)).replace(hour=self.__epg_time, minute=0, second=0)
+            if __curTime > __wakeEPG:
+                __wakeEPG = __wakeEPG + datetime.timedelta(days=self.__epg_interval)
+            self.__wakeUpUTEpg = int(time.mktime(__wakeEPG.timetuple()))
+            _flags |= isRES
+
+        # Calculate wakeup times
+        if _flags:
+            if self.__wakeUpUTRec <= self.__wakeUpUTEpg:
+                if self.__wakeUpUTRec > 0:
+                    self.__wakeUpUT = self.__wakeUpUTRec
+                elif self.__wakeUpUTEpg > 0:
+                    self.__wakeUpUT = self.__wakeUpUTEpg
+                    self.__wakeUp = __wakeEPG
+            else:
+                if self.__wakeUpUTEpg > 0:
+                    self.__wakeUpUT = self.__wakeUpUTEpg
+                    self.__wakeUp = __wakeEPG
+                elif self.__wakeUpUTRec > 0:
+                    self.__wakeUpUT = self.__wakeUpUTRec
+
+#        xbmc.sleep(6000)
+        return _flags
+
     def getSysState(self, Net=True, verbose=False):
         _flags = isUSR
 
         # Update status xml from tvh
-        if not self.getPvrStatusXML():
+        if not self.__getPvrStatusXML():
             return _flags # Failure. FIXME: Perhaps continue with old xml? What about auto_mode?
 
         # Check for current recordings. If there a 'status' tag,
@@ -295,53 +340,8 @@ class Manager(object):
         if verbose: tools.writeLog('Status flags: {0:05b} (RES/NET/PRG/REC/EPG)'.format(_flags))
 
         # Calculate new schedule value
-        self.calcNextSched()
+        self.__calcNextSched()
 
-        return _flags
-
-    def calcNextSched(self):
-        self.__wakeUpUTRec = 0
-        self.__wakeUpUTEpg = 0
-        self.__wakeUpUT = 0
-        self.__wakeUp = None
-
-        __curTime = datetime.datetime.now()
-
-        _flags = isUSR
-        nodedata = self.readStatusXML('next')
-        if nodedata:
-            self.__wakeUp = (__curTime + datetime.timedelta(minutes=int(nodedata[0]) - self.__prerun)).replace(second=0)
-            self.__wakeUpUTRec = int(time.mktime(self.__wakeUp.timetuple()))
-            _flags |= isRES
-
-        __wakeEPG = None
-        if self.__epg_interval > 0:
-            __dayDelta = self.__epg_interval
-            if int(__curTime.strftime('%j')) % __dayDelta == 0:
-                __dayDelta = 0
-            __wakeEPG = (__curTime + datetime.timedelta(days=__dayDelta) -
-                         datetime.timedelta(days=int(__curTime.strftime('%j')) % self.__epg_interval)).replace(hour=self.__epg_time, minute=0, second=0)
-            if __curTime > __wakeEPG:
-                __wakeEPG = __wakeEPG + datetime.timedelta(days=self.__epg_interval)
-            self.__wakeUpUTEpg = int(time.mktime(__wakeEPG.timetuple()))
-            _flags |= isRES
-
-        # Calculate wakeup times
-        if _flags:
-            if self.__wakeUpUTRec <= self.__wakeUpUTEpg:
-                if self.__wakeUpUTRec > 0:
-                    self.__wakeUpUT = self.__wakeUpUTRec
-                elif self.__wakeUpUTEpg > 0:
-                    self.__wakeUpUT = self.__wakeUpUTEpg
-                    self.__wakeUp = __wakeEPG
-            else:
-                if self.__wakeUpUTEpg > 0:
-                    self.__wakeUpUT = self.__wakeUpUTEpg
-                    self.__wakeUp = __wakeEPG
-                elif self.__wakeUpUTRec > 0:
-                    self.__wakeUpUT = self.__wakeUpUTRec
-
-#        xbmc.sleep(6000)
         return _flags
 
     @staticmethod
