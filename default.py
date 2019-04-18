@@ -18,6 +18,9 @@ __LS__ = __addon__.getLocalizedString
 # File for power off event
 POWER_OFF_FILE = xbmc.translatePath('special://temp/.pbc_poweroff')
 
+# Script to be executed on resume (from suspend/hibernate)
+RESUME_SCRIPT = xbmc.translatePath('special://userdata/resume.py')
+
 # Resume margin used (in seconds)
 RESUME_MARGIN = 60
 
@@ -29,9 +32,6 @@ AUTO_MODE_IDLE_SHUTDOWN = 2
 
 # Slow cycle time (seconds)
 SLOW_CYCLE = 60
-
-# Run autoexec.py on resume?
-AUTOEXEC_ON_RESUME = True
 
 SHUTDOWN_CMD = xbmc.translatePath(os.path.join(__path__, 'resources', 'lib', 'shutdown.sh'))
 EXTGRABBER = xbmc.translatePath(os.path.join(__path__, 'resources', 'lib', 'epggrab_ext.sh'))
@@ -504,10 +504,8 @@ class Manager(object):
                             tools.writeLog('external EPG grabber script took %s seconds' % ((datetime.datetime.now() - _start).seconds))
                         except Exception:
                             tools.writeLog('Could not start external EPG grabber script', level=xbmc.LOGERROR)
-                elif resumed:
-                    if AUTOEXEC_ON_RESUME:
-                        xbmc.executescript(os.path.join('special://userdata/', 'autoexec.py'))
-                    #xbmc.executescript('special://home/addons/script.xsppartymode/default.py')
+                elif resumed and os.path.isfile(RESUME_SCRIPT):
+                    xbmc.executescript(RESUME_SCRIPT)
 
                 # Reset flags
                 #############
