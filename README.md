@@ -88,6 +88,4 @@ and change this to:
 
 Don’t forget to store. Remember that you have to repeat this when the skin has updated.
 
-Please send Comments and Bugreports to birger.jesch@gmail.com
-
 HINT: If your OS is OpenELEC/LibreELEC you have to turn off ‘Shutdown requires admin privileges’ as OpenELEC/LibreELEC doesn’t need sudo! This should be done automatically in most cases.
