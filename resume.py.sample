@@ -1,0 +1,9 @@
+# Sample script for executing scripts when resuming from suspend/hibernate
+# If you want to use it, copy it to Kodi's userdata folder and name it "resume.py"
+#
+import xbmc
+
+# Put here the addons/scripts you want to execute on resume
+xbmc.executescript("special://home/some-path/your-script.py")
+xbmc.executebuiltin('XBMC.RunAddon(addon_name_here)')
+
