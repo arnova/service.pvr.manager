@@ -467,6 +467,7 @@ class Manager(object):
         ### START SERVICE LOOP ###
         tools.writeLog('Starting service', level=xbmc.LOGNOTICE)
 
+        idle_timer = 0
         idle_last = 0
         wake_up_last = 0
         resume_last = 0
@@ -511,8 +512,7 @@ class Manager(object):
                 #############
                 first_start = False
                 resumed = False
-#                idle_last = 0
-                idle_last = xbmc.getGlobalIdleTime()
+                idle_timer = 0
                 # Force update of wakeup time, just in case
                 wake_up_last = 0
 
@@ -538,15 +538,16 @@ class Manager(object):
             # User activity detected?
             idle = xbmc.getGlobalIdleTime()
             if idle < idle_last:
+                idle_timer = 0
                 if not auto_mode_timer == 0:
                     auto_mode_timer = 0
                     tools.writeLog('User interaction detected, disabling automode')
             idle_last = idle
 
             if auto_mode_timer > 0:
-                tools.writeLog('Automode timer is set to value %s' % auto_mode_timer)
+                tools.writeLog('Automode timer is set to %s minutes' % auto_mode_timer)
 
-            # Wait loop
+            # 1 Minute wait loop
             wait_count = 0
             while wait_count < SLOW_CYCLE:
                 wait_count += 1
@@ -560,6 +561,7 @@ class Manager(object):
                     if int(time.time()) < resume_last + RESUME_MARGIN:
                         tools.writeLog('Not enough time passed since last power up, skipping poweroff')
                     else:
+                        idle_timer = 0
                         if xbmc.getCondVisibility('Player.Playing') or xbmc.getCondVisibility('Player.Paused'):
                             tools.writeLog('Stopping Player')
                             xbmc.Player().stop()
@@ -570,26 +572,18 @@ class Manager(object):
                         if (_flags & isREC):
                             tools.Notify().notify(__LS__(30015), __LS__(30020), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Recording in progress'
                             tools.writeLog('Recording in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            #idle_last = 0
-                            idle_last = xbmc.getGlobalIdleTime()
                             auto_mode_timer = AUTO_MODE_IDLE_SHUTDOWN
                         elif (_flags & isEPG):
                             tools.Notify().notify(__LS__(30015), __LS__(30021), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'EPG-Update'
                             tools.writeLog('EPG-update in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            #idle_last = 0
-                            idle_last = xbmc.getGlobalIdleTime()
                             auto_mode_timer = AUTO_MODE_IDLE_SHUTDOWN
                         elif (_flags & isPRG):
                             tools.Notify().notify(__LS__(30015), __LS__(30022), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Postprocessing'
                             tools.writeLog('Postprocessing in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            #idle_last = 0
-                            idle_last = xbmc.getGlobalIdleTime()
                             auto_mode_timer = AUTO_MODE_IDLE_SHUTDOWN
                         elif (_flags & isNET):
                             tools.Notify().notify(__LS__(30015), __LS__(30023), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Network active'
                             tools.writeLog('Network active: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            #idle_last = 0
-                            idle_last = xbmc.getGlobalIdleTime()
                             auto_mode_timer = AUTO_MODE_IDLE_SHUTDOWN
                         else:
                             power_off = True
@@ -605,24 +599,25 @@ class Manager(object):
                 xbmc.executebuiltin('XBMC.InhibitIdleShutdown(true)')
                 #Manager.disableScreensaver() # Doesn't work as intended
 
-                # (Re)set auto mode timer, just in case
-                if auto_mode_timer > 0:
-                    auto_mode_timer = AUTO_MODE_IDLE_SHUTDOWN
+                # (Re)set idle timer
+                idle_timer = 0
             else:
                 xbmc.executebuiltin('XBMC.InhibitIdleShutdown(false)')
 
                 # Auto shutdown handling
-                if not (xbmc.getCondVisibility('Player.Playing') or xbmc.getCondVisibility('Player.Paused')):
-                    idle = xbmc.getGlobalIdleTime() # Make sure idletime is up to date
-                    if idle > (IDLE_SHUTDOWN * 60):
-                        tools.writeLog('No user activity detected for %s seconds. Powering down' % idle)
+                if (xbmc.getCondVisibility('Player.Playing') or xbmc.getCondVisibility('Player.Paused')):
+                    idle_timer = 0
+                else:
+                    idle_timer += 1
+                    if idle_timer > IDLE_SHUTDOWN:
+                        tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
                         power_off = True
 
-                if auto_mode_timer > 0:
-                    auto_mode_timer -= 1
-                    if auto_mode_timer == 0:
-                        tools.writeLog('Automode ending')
-                        power_off = True
+                    if auto_mode_timer > 0:
+                        auto_mode_timer -= 1
+                        if auto_mode_timer == 0:
+                            tools.writeLog('Automode ending')
+                            power_off = True
 
             if power_off:
                 power_off = False
