@@ -407,7 +407,7 @@ class Manager(object):
 
         return False # No event
 
-    def setWakeup(self, shutDown=True):
+    def setWakeup(self, shutdown=True, countdown=True):
         # Make sure we get updated info
         _flags = self.getSysState(verbose=True) & (isREC | isEPG | isPRG | isNET)
 
@@ -421,7 +421,7 @@ class Manager(object):
         tools.writeLog('Wake-up Unix time: %s' % (self.__wakeUpUT), xbmc.LOGNOTICE)
 #        tools.writeLog('Flags before shutdown are: {0:05b}'.format(_flags))
 
-        if shutDown:
+        if shutdown:
             # Show notifications
             if self.__nextsched:
                 if self.__wakeUpUT == self.__wakeUpUTRec:
@@ -431,7 +431,7 @@ class Manager(object):
                 else:
                     tools.Notify().notify(__LS__(30010), __LS__(30014))
 
-            if not self.countDown():
+            if not countdown or self.countDown():
                 tools.writeLog('Instruct the system to shut down using %s' % ('Application' if self.__shutdown == 0 else 'OS'), xbmc.LOGNOTICE)
                 os.system('%s%s %s %s' % (self.__sudo, SHUTDOWN_CMD, self.__wakeUpUT, self.__shutdown))
                 if self.__shutdown == 0:
@@ -471,7 +471,7 @@ class Manager(object):
         idle_last = 0
         wake_up_last = 0
         resume_last = 0
-        auto_mode_timer = 0
+        auto_mode = False
         resumed = False
         first_start = True
         power_off = False
@@ -485,7 +485,7 @@ class Manager(object):
 
                 # Check if we resumed automatically
                 if _flags:
-                    auto_mode_timer = AUTO_MODE_IDLE_SHUTDOWN
+                    auto_mode = True
                     tools.writeLog('Wakeup in automode', level=xbmc.LOGNOTICE)
 
                     if (_flags & isEPG) and self.__epg_grab_ext and os.path.isfile(EXTGRABBER):
@@ -539,13 +539,10 @@ class Manager(object):
             idle = xbmc.getGlobalIdleTime()
             if idle < idle_last:
                 idle_timer = 0
-                if not auto_mode_timer == 0:
-                    auto_mode_timer = 0
+                if auto_mode:
+                    auto_mode = False
                     tools.writeLog('User interaction detected, disabling automode')
             idle_last = idle
-
-            if auto_mode_timer > 0:
-                tools.writeLog('Automode timer is set to %s minutes' % auto_mode_timer)
 
             # 1 Minute wait loop
             wait_count = 0
@@ -572,19 +569,19 @@ class Manager(object):
                         if (_flags & isREC):
                             tools.Notify().notify(__LS__(30015), __LS__(30020), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Recording in progress'
                             tools.writeLog('Recording in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            auto_mode_timer = AUTO_MODE_IDLE_SHUTDOWN
+                            auto_mode = True
                         elif (_flags & isEPG):
                             tools.Notify().notify(__LS__(30015), __LS__(30021), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'EPG-Update'
                             tools.writeLog('EPG-update in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            auto_mode_timer = AUTO_MODE_IDLE_SHUTDOWN
+                            auto_mode = True
                         elif (_flags & isPRG):
                             tools.Notify().notify(__LS__(30015), __LS__(30022), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Postprocessing'
                             tools.writeLog('Postprocessing in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            auto_mode_timer = AUTO_MODE_IDLE_SHUTDOWN
+                            auto_mode = True
                         elif (_flags & isNET):
                             tools.Notify().notify(__LS__(30015), __LS__(30023), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Network active'
                             tools.writeLog('Network active: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            auto_mode_timer = AUTO_MODE_IDLE_SHUTDOWN
+                            auto_mode = True
                         else:
                             power_off = True
                             break # Break wait loop so we can perform power off
@@ -609,24 +606,15 @@ class Manager(object):
                     idle_timer = 0
                 else:
                     idle_timer += 1
-                    if idle_timer > IDLE_SHUTDOWN:
+                    if idle_timer > (IDLE_SHUTDOWN if not auto_mode else AUTO_MODE_IDLE_SHUTDOWN):
                         tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
                         power_off = True
 
-                    if auto_mode_timer > 0:
-                        auto_mode_timer -= 1
-                        if auto_mode_timer == 0:
-                            tools.writeLog('Automode ending')
-                            power_off = True
-
             if power_off:
-                power_off = False
-                auto_mode_timer = 0 # Always disable automode
-
                 # Set RTC wakeup + suspend system:
                 # NOTE: setWakeup() will block when the system suspends
                 #       and continue as soon as it resumes again
-                if self.setWakeup():
+                if self.setWakeup(countDown=auto_mode):
                     # Notify next iteration we have resumed from suspend
                     resumed = True
                     tools.writeLog('Resume point passed', level=xbmc.LOGNOTICE)
@@ -634,6 +622,9 @@ class Manager(object):
                     resume_last = int(time.time())
                     # Reset power off event, just in case
                     self.getPowerOffEvent()
+
+                power_off = False
+                auto_mode = False # Always disable automode
 
         ### END MAIN LOOP ###
 
