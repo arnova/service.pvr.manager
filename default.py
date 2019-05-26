@@ -614,7 +614,7 @@ class Manager(object):
                 # Set RTC wakeup + suspend system:
                 # NOTE: setWakeup() will block when the system suspends
                 #       and continue as soon as it resumes again
-                if self.setWakeup(countDown=auto_mode):
+                if self.setWakeup(countdown=auto_mode):
                     # Notify next iteration we have resumed from suspend
                     resumed = True
                     tools.writeLog('Resume point passed', level=xbmc.LOGNOTICE)
