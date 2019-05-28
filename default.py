@@ -505,8 +505,10 @@ class Manager(object):
                             tools.writeLog('external EPG grabber script took %s seconds' % ((datetime.datetime.now() - _start).seconds))
                         except Exception:
                             tools.writeLog('Could not start external EPG grabber script', level=xbmc.LOGERROR)
-                elif resumed and os.path.isfile(RESUME_SCRIPT):
-                    xbmc.executescript(RESUME_SCRIPT)
+                else:
+                    auto_mode = False
+                    if resumed and os.path.isfile(RESUME_SCRIPT):
+                        xbmc.executescript(RESUME_SCRIPT)
 
                 # Reset flags
                 #############
@@ -602,7 +604,7 @@ class Manager(object):
                 xbmc.executebuiltin('XBMC.InhibitIdleShutdown(false)')
 
                 # Auto shutdown handling
-                if (xbmc.getCondVisibility('Player.Playing') or xbmc.getCondVisibility('Player.Paused')):
+                if xbmc.getCondVisibility('Player.Playing'):
                     idle_timer = 0
                 else:
                     idle_timer += 1
@@ -622,9 +624,8 @@ class Manager(object):
                     resume_last = int(time.time())
                     # Reset power off event, just in case
                     self.getPowerOffEvent()
-
+                # Reset power off flag:
                 power_off = False
-                auto_mode = False # Always disable automode
 
         ### END MAIN LOOP ###
 
