@@ -610,6 +610,7 @@ class Manager(object):
                     if idle_timer > (IDLE_SHUTDOWN if not auto_mode else AUTO_MODE_IDLE_SHUTDOWN):
                         tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
                         power_off = True
+                        auto_mode = True
 
             if power_off:
                 # Set RTC wakeup + suspend system:
