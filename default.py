@@ -513,9 +513,7 @@ class Manager(object):
                 #############
                 first_start = False
                 resumed = False
-                idle_timer = 0
-                # Force update of wakeup time, just in case
-                wake_up_last = 0
+                wake_up_last = 0    # Force update of wakeup time, just in case
 
             # Update wake time, in case a new value is set
             # NOTE: We keep doing this (instead of only on powerdown),
@@ -609,8 +607,9 @@ class Manager(object):
                     idle_timer += 1
                     if idle_timer > (IDLE_SHUTDOWN if not auto_mode else AUTO_MODE_IDLE_SHUTDOWN):
                         tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
+                        idle_timer = 0    # In case powerdown is aborted by user
                         power_off = True
-                        auto_mode = True
+                        auto_mode = True  # Enable for countdown dialog
 
             if power_off:
                 # Set RTC wakeup + suspend system:
