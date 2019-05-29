@@ -431,7 +431,7 @@ class Manager(object):
                 else:
                     tools.Notify().notify(__LS__(30010), __LS__(30014))
 
-            if not countdown or self.countDown():
+            if not countdown or not self.countDown():
                 tools.writeLog('Instruct the system to shut down using %s' % ('Application' if self.__shutdown == 0 else 'OS'), xbmc.LOGNOTICE)
                 os.system('%s%s %s %s' % (self.__sudo, SHUTDOWN_CMD, self.__wakeUpUT, self.__shutdown))
                 if self.__shutdown == 0:
@@ -506,7 +506,6 @@ class Manager(object):
                         except Exception:
                             tools.writeLog('Could not start external EPG grabber script', level=xbmc.LOGERROR)
                 else:
-                    auto_mode = False
                     if resumed and os.path.isfile(RESUME_SCRIPT):
                         xbmc.executescript(RESUME_SCRIPT)
 
@@ -624,8 +623,9 @@ class Manager(object):
                     resume_last = int(time.time())
                     # Reset power off event, just in case
                     self.getPowerOffEvent()
-                # Reset power off flag:
-                power_off = False
+
+                power_off = False # Reset power off flag
+                auto_mode = False # Always disable automode
 
         ### END MAIN LOOP ###
 
