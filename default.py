@@ -448,6 +448,19 @@ class Manager(object):
 
         return False
 
+    def checkOutdatedRecordings(self, mode):
+        nodedata = self.readStatusXML('title')
+        for item in nodedata:
+            if not item in self.__recTitles:
+                self.__recTitles.append(item)
+                tools.writeLog('Recording of "%s" is active' % (item))
+        for item in self.__recTitles:
+            if not item in nodedata:
+                self.__recTitles.remove(item)
+                tools.writeLog('Recording of "%s" has finished' % (item))
+                if mode is None:
+                    self.deliverMail(__LS__(30047) % (release.hostname, item))
+
     ####################################### START MAIN SERVICE #####################################
 
     def start(self, mode=None):
@@ -525,20 +538,10 @@ class Manager(object):
             #       just in case Kodi crashes/freezes
             if not self.__wakeUpUT == wake_up_last:
                 wake_up_last = self.__wakeUpUT
-                self.setWakeup(False)
+                self.setWakeup(shutdown=False)
 
-            # check outdated recordings
-            nodedata = self.readStatusXML('title')
-            for item in nodedata:
-                if not item in self.__recTitles:
-                    self.__recTitles.append(item)
-                    tools.writeLog('Recording of "%s" is active' % (item))
-            for item in self.__recTitles:
-                if not item in nodedata:
-                    self.__recTitles.remove(item)
-                    tools.writeLog('Recording of "%s" has finished' % (item))
-                    if mode is None:
-                        self.deliverMail(__LS__(30047) % (release.hostname, item))
+            # Check outdated recordings
+            self.checkOutdatedRecordings(mode)
 
             # User activity detected?
             idle = xbmc.getGlobalIdleTime()
