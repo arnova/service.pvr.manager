@@ -469,17 +469,20 @@ class Manager(object):
         #os.system('%s%s %s %s' % (self.__sudo, SHUTDOWN_CMD, 0, 0))
         #tools.writeLog('Reset RTC')
 
-        if mode == 'sendmail':
+        if mode == 'CHECKMAILSETTINGS':
             if self.deliverMail(__LS__(30065) % (release.hostname)):
                 tools.dialogOK(__LS__(30066), __LS__(30068) % (self.__smtpto))
             else:
                 tools.dialogOK(__LS__(30067), __LS__(30069) % (self.__smtpto))
             return
-        elif mode == 'poweroff':
+        elif mode == 'POWEROFF':
             tools.writeLog('Poweroff command received', level=xbmc.LOGNOTICE)
 
             # Notify service loop of power off event
             self.setPowerOffEvent()
+            return
+        elif not mode == '':
+            tools.writeLog('Unknown parameter %s' % (mode), level=xbmc.LOGFATAL)
             return
 
         ### START SERVICE LOOP ###
@@ -641,11 +644,8 @@ class Manager(object):
 
         ##################################### END OF MAIN SERVICE #####################################
 
-# mode translations
-modes = {'NONE': None, 'POWEROFF': 'poweroff', 'CHECKMAILSETTINGS': 'sendmail'}
-
 if __name__ == '__main__':
-    mode = 'NONE'
+    mode = None
 
     try:
         mode = sys.argv[1].upper()
@@ -654,6 +654,6 @@ if __name__ == '__main__':
         pass
 
     TVHMan = Manager()
-    TVHMan.start(mode=modes[mode])
+    TVHMan.start(mode)
     tools.writeLog('Service with id %s (V.%s on %s) kicks off' % (TVHMan.rndProcNum, __version__, release.hostname), level=xbmc.LOGNOTICE)
     del TVHMan
