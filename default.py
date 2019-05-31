@@ -37,11 +37,13 @@ SHUTDOWN_CMD = xbmc.translatePath(os.path.join(__path__, 'resources', 'lib', 'sh
 EXTGRABBER = xbmc.translatePath(os.path.join(__path__, 'resources', 'lib', 'epggrab_ext.sh'))
 
 # set permissions for these files, this is required after installation or update
-
 _sts = os.stat(SHUTDOWN_CMD)
+if not (_sts.st_mode & stat.S_IEXEC):
+    os.chmod(SHUTDOWN_CMD, _sts.st_mode | stat.S_IEXEC)
+
 _stg = os.stat(EXTGRABBER)
-if not (_sts.st_mode & stat.S_IEXEC): os.chmod(SHUTDOWN_CMD, _sts.st_mode | stat.S_IEXEC)
-if not (_stg.st_mode & stat.S_IEXEC): os.chmod(EXTGRABBER, _stg.st_mode | stat.S_IEXEC)
+if not (_stg.st_mode & stat.S_IEXEC):
+    os.chmod(EXTGRABBER, _stg.st_mode | stat.S_IEXEC)
 
 tools.writeLog('OS ID is %s' % (release.osid))
 
@@ -137,7 +139,8 @@ class Manager(object):
         if _pw == '' or _pw == '*':
             _key = __addon__.getSetting(key)
             _token = __addon__.getSetting(token)
-            if len(_key) > 2: return "".join([chr(ord(_token[i]) ^ ord(_key[i])) for i in range(int(_key[-2:]))])
+            if len(_key) > 2:
+                return "".join([chr(ord(_token[i]) ^ ord(_key[i])) for i in range(int(_key[-2:]))])
             return ''
         else:
             _key = ''
@@ -239,7 +242,8 @@ class Manager(object):
             _xml = minidom.parseString(self.__xml)
             nodes = _xml.getElementsByTagName(xmlnode)
             for node in nodes:
-                if node: nodedata.append(node.childNodes[0].data)
+                if node:
+                    nodedata.append(node.childNodes[0].data)
             return nodedata
         except TypeError:
             tools.writeLog("Could not read XML tree from %s" % self.__server, level=xbmc.LOGERROR)
@@ -497,7 +501,8 @@ class Manager(object):
                         # ToDo: implement startup of external script (epg grabbing)
                         #
                         _epgpath = self.__epg_path
-                        if self.__epg_store and _epgpath == '': _epgpath = '/dev/null'
+                        if self.__epg_store and _epgpath == '':
+                            _epgpath = '/dev/null'
                         _start = datetime.datetime.now()
                         try:
                             _comm = subprocess.Popen('%s %s %s' % (EXTGRABBER, _epgpath, self.__epg_socket),
@@ -535,7 +540,8 @@ class Manager(object):
                 if not item in nodedata:
                     self.__recTitles.remove(item)
                     tools.writeLog('Recording of "%s" has finished' % (item))
-                    if mode is None: self.deliverMail(__LS__(30047) % (release.hostname, item))
+                    if mode is None:
+                        self.deliverMail(__LS__(30047) % (release.hostname, item))
 
             # User activity detected?
             idle = xbmc.getGlobalIdleTime()
