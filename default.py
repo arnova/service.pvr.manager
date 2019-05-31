@@ -416,9 +416,6 @@ class Manager(object):
         return False # No event
 
     def setWakeup(self, shutdown=True, countdown=True):
-        # Make sure we get updated info
-        self.updateSysState(verbose=True)
-
         if not self.__wakeUpUT:
             tools.writeLog('No recordings or EPG update to schedule')
         elif self.__wakeUpUT == self.__wakeUpUTRec:
@@ -595,30 +592,31 @@ class Manager(object):
                             break # Break wait loop so we can perform power off
             # Wait loop ends
 
-            # Get updated system state (and store new status)
-            self.updateSysState(verbose=True)
+            if not power_off:
+                # Get updated system state (and store new status)
+                self.updateSysState(verbose=True)
 
-            # When flags are set, make sure we don't automatically shutdown
-            # and prevent the screensaver from starting
-            if self.__flags & (isREC | isEPG | isPRG | isNET):
-                xbmc.executebuiltin('XBMC.InhibitIdleShutdown(true)')
-                #Manager.disableScreensaver() # Doesn't work as intended
+                # When flags are set, make sure we don't automatically shutdown
+                # and prevent the screensaver from starting
+                if self.__flags & (isREC | isEPG | isPRG | isNET):
+                    xbmc.executebuiltin('XBMC.InhibitIdleShutdown(true)')
+                    #Manager.disableScreensaver() # Doesn't work as intended
 
-                # (Re)set idle timer
-                idle_timer = 0
-            else:
-                xbmc.executebuiltin('XBMC.InhibitIdleShutdown(false)')
-
-                # Auto shutdown handling
-                if xbmc.getCondVisibility('Player.Playing'):
+                    # (Re)set idle timer
                     idle_timer = 0
                 else:
-                    idle_timer += 1
-                    if idle_timer > (IDLE_SHUTDOWN if not auto_mode else AUTO_MODE_IDLE_SHUTDOWN):
-                        tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
-                        idle_timer = 0    # In case powerdown is aborted by user
-                        power_off = True
-                        auto_mode = True  # Enable for countdown dialog
+                    xbmc.executebuiltin('XBMC.InhibitIdleShutdown(false)')
+
+                    # Auto shutdown handling
+                    if xbmc.getCondVisibility('Player.Playing'):
+                        idle_timer = 0
+                    else:
+                        idle_timer += 1
+                        if idle_timer > (IDLE_SHUTDOWN if not auto_mode else AUTO_MODE_IDLE_SHUTDOWN):
+                            tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
+                            idle_timer = 0    # In case powerdown is aborted by user
+                            power_off = True
+                            auto_mode = True  # Enable for countdown dialog
 
             if power_off:
                 # Set RTC wakeup + suspend system:
