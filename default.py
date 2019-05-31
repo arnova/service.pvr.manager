@@ -69,6 +69,7 @@ class Manager(object):
         self.__wakeUpUTRec = None
         self.__wakeUpUTEpg = None
         self.__monitored_ports = ''
+        self.__flags = isUSR
         self.rndProcNum = random.randint(1, 1024)
         self.hasPVR = None
 
@@ -252,12 +253,11 @@ class Manager(object):
 
         __curTime = datetime.datetime.now()
 
-        _flags = isUSR
         nodedata = self.readStatusXML('next')
         if nodedata:
             self.__wakeUp = (__curTime + datetime.timedelta(minutes=int(nodedata[0]) - self.__prerun)).replace(second=0)
             self.__wakeUpUTRec = int(time.mktime(self.__wakeUp.timetuple()))
-            _flags |= isRES
+            self.__flags |= isRES
 
         __wakeEPG = None
         if self.__epg_interval > 0:
@@ -269,10 +269,10 @@ class Manager(object):
             if __curTime > __wakeEPG:
                 __wakeEPG = __wakeEPG + datetime.timedelta(days=self.__epg_interval)
             self.__wakeUpUTEpg = int(time.mktime(__wakeEPG.timetuple()))
-            _flags |= isRES
+            self.__flags |= isRES
 
         # Calculate wakeup times
-        if _flags:
+        if self.__flags & isRES:
             if self.__wakeUpUTRec <= self.__wakeUpUTEpg:
                 if self.__wakeUpUTRec > 0:
                     self.__wakeUpUT = self.__wakeUpUTRec
@@ -286,46 +286,48 @@ class Manager(object):
                 elif self.__wakeUpUTRec > 0:
                     self.__wakeUpUT = self.__wakeUpUTRec
 
-#        xbmc.sleep(6000)
-        return _flags
-
-    def getSysState(self, Net=True, verbose=False):
-        _flags = isUSR
-
+    def updateSysState(self, Net=True, verbose=False):
         # Update status xml from tvh
         if not self.__getPvrStatusXML():
-            return _flags # Failure. FIXME: Perhaps continue with old xml? What about auto_mode?
+            return False
+
+        # Reset flags
+        self.__flags = isUSR
 
         # Check for current recordings. If there a 'status' tag,
         # and content is "Recording" current recording is in progress
         nodedata = self.readStatusXML('status')
-        if nodedata and 'Recording' in nodedata: _flags |= isREC
+        if nodedata and 'Recording' in nodedata:
+            self.__flags |= isREC
 
         # Check for (future) recordings. If there is a 'next' tag a future recording comes up
         nodedata = self.readStatusXML('next')
         if nodedata:
             if int(nodedata[0]) <= (self.__prerun + self.__postrun):
                 # immediate
-                _flags |= isREC
+                self.__flags |= isREC
             else:
                 # later
-                _flags |= isRES
+                self.__flags |= isRES
 
         # Check if actualizing EPG-Data
         if self.__epg_interval > 0:
             __curTime = datetime.datetime.now()
             __dayDelta = self.__epg_interval
-            if int(__curTime.strftime('%j')) % __dayDelta == 0: __dayDelta = 0
+            if int(__curTime.strftime('%j')) % __dayDelta == 0:
+                __dayDelta = 0
+
             __epgTime = (__curTime + datetime.timedelta(days=__dayDelta) -
                          datetime.timedelta(days=int(__curTime.strftime('%j')) % self.__epg_interval)).replace(hour=self.__epg_time, minute=0, second=0)
             if __epgTime <= __curTime <= __epgTime + datetime.timedelta(minutes=self.__epg_duration):
-                _flags |= isEPG
+                self.__flags |= isEPG
 
         # Check if any watched process is running
         if self.__pp_enabled:
             for _proc in self.__pp_list:
                 _pid = subprocess.Popen(['pidof', _proc], stdout=subprocess.PIPE)
-                if _pid.stdout.read().strip(): _flags |= isPRG
+                if _pid.stdout.read().strip():
+                    self.__flags |= isPRG
 
         # Check for active network connection(s)
         if self.__network and Net:
@@ -334,15 +336,17 @@ class Manager(object):
                 nwc = subprocess.Popen('netstat -an | grep -iE "(established|verbunden)" | grep -v "127.0.0.1" | grep ":%s "' % port, stdout=subprocess.PIPE, shell=True).communicate()
                 nwc = nwc[0].strip()
                 if nwc and len(nwc.split('\n')) > 0:
-                    _flags |= isNET
+                    self.__flags |= isNET
                     _port += '%s, ' % (port)
-            if _port: tools.writeLog('Network on port %s established and active' % (_port[:-2]))
-        if verbose: tools.writeLog('Status flags: {0:05b} (RES/NET/PRG/REC/EPG)'.format(_flags))
+            if _port:
+                tools.writeLog('Network on port %s established and active' % (_port[:-2]))
+        if verbose:
+            tools.writeLog('Status flags: {0:05b} (RES/NET/PRG/REC/EPG)'.format(self.__flags))
 
         # Calculate new schedule value
         self.__calcNextSched()
 
-        return _flags
+        return True
 
     @staticmethod
     def disableScreensaver():
@@ -409,7 +413,7 @@ class Manager(object):
 
     def setWakeup(self, shutdown=True, countdown=True):
         # Make sure we get updated info
-        _flags = self.getSysState(verbose=True) & (isREC | isEPG | isPRG | isNET)
+        self.updateSysState(verbose=True)
 
         if not self.__wakeUpUT:
             tools.writeLog('No recordings or EPG update to schedule')
@@ -419,7 +423,7 @@ class Manager(object):
             tools.writeLog('EPG update wake-up time: %s' % (self.__wakeUp.strftime('%d.%m.%y %H:%M')))
 
         tools.writeLog('Wake-up Unix time: %s' % (self.__wakeUpUT), xbmc.LOGNOTICE)
-#        tools.writeLog('Flags before shutdown are: {0:05b}'.format(_flags))
+#        tools.writeLog('Flags before shutdown are: {0:05b}'.format(self.__flags))
 
         if shutdown:
             # Show notifications
@@ -475,20 +479,19 @@ class Manager(object):
         resumed = False
         first_start = True
         power_off = False
-        _flags = isUSR
 
         mon = xbmc.Monitor()
         while (1):
             if resumed or first_start:
                 # Get updated system state (and store new status)
-                _flags = self.getSysState(verbose=True) & (isREC | isEPG | isPRG | isNET)
+                self.updateSysState(verbose=True)
 
                 # Check if we resumed automatically
-                if _flags:
+                if self.__flags & (isREC | isEPG | isPRG | isNET):
                     auto_mode = True
                     tools.writeLog('Wakeup in automode', level=xbmc.LOGNOTICE)
 
-                    if (_flags & isEPG) and self.__epg_grab_ext and os.path.isfile(EXTGRABBER):
+                    if (self.__flags & isEPG) and self.__epg_grab_ext and os.path.isfile(EXTGRABBER):
                         tools.writeLog('Starting script for grabbing external EPG')
                         #
                         # ToDo: implement startup of external script (epg grabbing)
@@ -563,21 +566,21 @@ class Manager(object):
                             xbmc.Player().stop()
 
                         # Make sure system state is updated
-                        _flags = self.getSysState(verbose=True) & (isREC | isEPG | isPRG | isNET)
+                        self.updateSysState(verbose=True)
 
-                        if (_flags & isREC):
+                        if (self.__flags & isREC):
                             tools.Notify().notify(__LS__(30015), __LS__(30020), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Recording in progress'
                             tools.writeLog('Recording in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
                             auto_mode = True
-                        elif (_flags & isEPG):
+                        elif (self.__flags & isEPG):
                             tools.Notify().notify(__LS__(30015), __LS__(30021), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'EPG-Update'
                             tools.writeLog('EPG-update in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
                             auto_mode = True
-                        elif (_flags & isPRG):
+                        elif (self.__flags & isPRG):
                             tools.Notify().notify(__LS__(30015), __LS__(30022), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Postprocessing'
                             tools.writeLog('Postprocessing in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
                             auto_mode = True
-                        elif (_flags & isNET):
+                        elif (self.__flags & isNET):
                             tools.Notify().notify(__LS__(30015), __LS__(30023), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Network active'
                             tools.writeLog('Network active: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
                             auto_mode = True
@@ -587,11 +590,11 @@ class Manager(object):
             # Wait loop ends
 
             # Get updated system state (and store new status)
-            _flags = self.getSysState(verbose=True) & (isREC | isEPG | isPRG | isNET)
+            self.updateSysState(verbose=True)
 
             # When flags are set, make sure we don't automatically shutdown
             # and prevent the screensaver from starting
-            if _flags:
+            if self.__flags & (isREC | isEPG | isPRG | isNET):
                 xbmc.executebuiltin('XBMC.InhibitIdleShutdown(true)')
                 #Manager.disableScreensaver() # Doesn't work as intended
 
