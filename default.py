@@ -569,7 +569,6 @@ class Manager(object):
                     if int(time.time()) < resume_last + RESUME_MARGIN:
                         tools.writeLog('Not enough time passed since last power up, skipping poweroff')
                     else:
-                        idle_timer = 0
                         if xbmc.getCondVisibility('Player.Playing') or xbmc.getCondVisibility('Player.Paused'):
                             tools.writeLog('Stopping Player')
                             xbmc.Player().stop()
