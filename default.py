@@ -485,7 +485,7 @@ class Manager(object):
             # Notify service loop of power off event
             self.setPowerOffEvent()
             return
-        elif not mode == '':
+        elif not mode == None:
             tools.writeLog('Unknown parameter %s' % (mode), level=xbmc.LOGFATAL)
             return
 
