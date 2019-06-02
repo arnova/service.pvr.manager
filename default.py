@@ -437,6 +437,10 @@ class Manager(object):
                     tools.Notify().notify(__LS__(30010), __LS__(30014))
 
             if not countdown or not self.countDown():
+                if xbmc.getCondVisibility('Player.Playing') or xbmc.getCondVisibility('Player.Paused'):
+                    tools.writeLog('Stopping Player')
+                    xbmc.Player().stop()
+
                 tools.writeLog('Instruct the system to shut down using %s' % ('Application' if self.__shutdown == 0 else 'OS'), xbmc.LOGNOTICE)
                 os.system('%s%s %s %s' % (self.__sudo, SHUTDOWN_CMD, self.__wakeUpUT, self.__shutdown))
                 if self.__shutdown == 0:
