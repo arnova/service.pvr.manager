@@ -530,9 +530,9 @@ class Manager(object):
                             tools.writeLog('external EPG grabber script took %s seconds' % ((datetime.datetime.now() - _start).seconds))
                         except Exception:
                             tools.writeLog('Could not start external EPG grabber script', level=xbmc.LOGERROR)
-                else:
-                    if resumed and os.path.isfile(RESUME_SCRIPT):
-                        xbmc.executescript(RESUME_SCRIPT)
+
+                if resumed and os.path.isfile(RESUME_SCRIPT):
+                    xbmc.executebuiltin("XBMC.RunScript(%s, %s %s)" % (RESUME_SCRIPT, auto_mode, (xbmc.getGlobalIdleTime() > idle_last)))
 
                 # Reset flags
                 #############
@@ -639,6 +639,8 @@ class Manager(object):
                     resume_last = int(time.time())
                     # Reset power off event, just in case
                     self.getPowerOffEvent()
+                    # Update idle_last value to determine whether there was user interaction
+                    idle_last = xbmc.getGlobalIdleTime()
 
                 power_off = False # Reset power off flag
                 auto_mode = False # Always disable automode
