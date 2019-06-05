@@ -3,7 +3,21 @@
 #
 import xbmc
 
+try:
+    auto_mode = bool(int(sys.argv[1]))
+except IndexError:
+    auto_mode = False
+    pass
+
+try:
+    user_idle = bool(int(sys.argv[2]))
+except IndexError:
+    user_idle = True
+    pass
+
 # Put here the addons/scripts you want to execute on resume
-xbmc.executescript("special://home/some-path/your-script.py")
-xbmc.executebuiltin('XBMC.RunAddon(addon_name_here)')
+# Optionally use the auto_mode/user_idle flags for conditional execution
+if not auto_mode:
+#    xbmc.executescript("special://home/some-path/your-script.py")
+    xbmc.executebuiltin('XBMC.RunAddon(addon_name_here)')
 
