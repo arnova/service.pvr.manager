@@ -532,7 +532,7 @@ class Manager(object):
                             tools.writeLog('Could not start external EPG grabber script', level=xbmc.LOGERROR)
 
                 if resumed and os.path.isfile(RESUME_SCRIPT):
-                    xbmc.executebuiltin("XBMC.RunScript(%s, %s %s)" % (RESUME_SCRIPT, auto_mode, (xbmc.getGlobalIdleTime() > idle_last)))
+                    xbmc.executebuiltin("XBMC.RunScript(%s, %s %s)" % (RESUME_SCRIPT, int(auto_mode), int((xbmc.getGlobalIdleTime() > idle_last))))
 
                 # Reset flags
                 #############
