@@ -3,6 +3,7 @@ import sys, os, stat, subprocess
 import xbmc, xbmcaddon, xbmcgui
 import time, datetime, random
 import requests
+import threading
 from xml.dom import minidom
 import smtplib
 from email.message import Message
@@ -22,7 +23,7 @@ POWER_OFF_FILE = xbmc.translatePath('special://temp/.pbc_poweroff')
 RESUME_SCRIPT = xbmc.translatePath('special://userdata/resume.py')
 
 # Resume margin used (in seconds)
-RESUME_MARGIN = 60
+RESUME_MARGIN = 30
 
 # Amount of minutes idle after which we'll (auto) shutdown
 IDLE_SHUTDOWN = 30
@@ -59,6 +60,35 @@ isPRG = 0b00100     # Programs/Processes are active
 isREC = 0b00010     # Recording is or becomes active
 isEPG = 0b00001     # EPG grabbing is active
 isUSR = 0b00000     # User is active
+
+class UserIdleThread(threading.Thread):
+    def __init__(self):
+        threading.Thread.__init__(self)
+        self._user_activity = False
+        self._stop_event = threading.Event()
+
+    def run(self):
+        _idle_last = 0
+        while not self._stop_event.isSet():
+            self._stop_event.wait(0.01) # sleep 10 ms
+
+            # User activity detected (=idle timer reset)?
+            _idle = xbmc.getGlobalIdleTime()
+            if _idle < _idle_last:
+                self._user_activity = True
+            _idle_last = _idle
+
+    def stop(self, timeout=None):
+        self._stop_event.set()
+        threading.Thread.join(self, timeout)
+
+    def IsUserActive(self, reset=True):
+        if self._user_activity:
+            if reset:
+                self._user_activity = False
+            return True
+        return False
+
 
 class Manager(object):
 
@@ -493,7 +523,6 @@ class Manager(object):
         tools.writeLog('Starting service', level=xbmc.LOGNOTICE)
 
         idle_timer = 0
-        idle_last = 0
         wake_up_last = 0
         resume_last = 0
         auto_mode = False
@@ -502,6 +531,9 @@ class Manager(object):
         power_off = False
 
         mon = xbmc.Monitor()
+        uit = UserIdleThread()
+        uit.start()
+
         while (1):
             if resumed or first_start:
                 # Get updated system state (and store new status)
@@ -532,7 +564,7 @@ class Manager(object):
                             tools.writeLog('Could not start external EPG grabber script', level=xbmc.LOGERROR)
 
                 if resumed and os.path.isfile(RESUME_SCRIPT):
-                    _user_idle = (xbmc.getGlobalIdleTime() >= idle_last)
+                    _user_idle = not uit.IsUserActive(False)
                     xbmc.executebuiltin("XBMC.RunScript(%s, %s, %s)" % (RESUME_SCRIPT, int(auto_mode), int(_user_idle)))
 
                 # Reset flags
@@ -551,15 +583,6 @@ class Manager(object):
             # Check outdated recordings
             self.checkOutdatedRecordings(mode)
 
-            # User activity detected?
-            idle = xbmc.getGlobalIdleTime()
-            if idle < idle_last:
-                idle_timer = 0
-                if auto_mode:
-                    auto_mode = False
-                    tools.writeLog('User interaction detected, disabling automode')
-            idle_last = idle
-
             # 1 Minute wait loop
             wait_count = 0
             while wait_count < SLOW_CYCLE:
@@ -567,6 +590,13 @@ class Manager(object):
                 if mon.waitForAbort(1):
                     tools.writeLog('Service with id %s aborted' % (self.rndProcNum), level=xbmc.LOGNOTICE)
                     return
+
+                # User activity detected?
+                if uit.IsUserActive():
+                    idle_timer = 0
+                    if auto_mode:
+                        auto_mode = False
+                        tools.writeLog('User interaction detected, disabling automode')
 
                 # Check if power off event was set
                 if self.getPowerOffEvent():
@@ -633,20 +663,17 @@ class Manager(object):
                 # NOTE: setWakeup() will block when the system suspends
                 #       and continue as soon as it resumes again
                 if self.setWakeup(countdown=auto_mode):
-                    # Notify next iteration we have resumed from suspend
-                    resumed = True
+                    resumed = True                    # Notify next iteration we have resumed from suspend
+                    uit.IsUserActive()                # Reset user active event
+                    resume_last = int(time.time())    # Save resume time for later use
+                    self.getPowerOffEvent()           # Reset power off event, just in case
                     tools.writeLog('Resume point passed', level=xbmc.LOGNOTICE)
-                    # Save resume time for later use
-                    resume_last = int(time.time())
-                    # Reset power off event, just in case
-                    self.getPowerOffEvent()
-                    # Update idle_last value to determine whether there was user interaction
-                    idle_last = xbmc.getGlobalIdleTime()
 
                 power_off = False # Reset power off flag
                 auto_mode = False # Always disable automode
 
         ### END MAIN LOOP ###
+        uit.stop() # Stop user idle thread
 
         ##################################### END OF MAIN SERVICE #####################################
 
