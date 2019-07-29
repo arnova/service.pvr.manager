@@ -23,7 +23,7 @@ POWER_OFF_FILE = xbmc.translatePath('special://temp/.pbc_poweroff')
 RESUME_SCRIPT = xbmc.translatePath('special://userdata/resume.py')
 
 # Resume margin used (in seconds)
-RESUME_MARGIN = 30
+RESUME_MARGIN = 15
 
 # Amount of minutes idle after which we'll (auto) shutdown
 IDLE_SHUTDOWN = 30
