@@ -31,6 +31,9 @@ IDLE_SHUTDOWN = 30
 # Amount of minutes idle after automode ends we'll (auto) shutdown
 AUTO_MODE_IDLE_SHUTDOWN = 2
 
+# Countdown time in seconds when automatically shutting down
+COUNTDOWN_TIME = 10
+
 # Slow cycle time (seconds)
 SLOW_CYCLE = 60
 
@@ -392,7 +395,7 @@ class Manager(object):
             tools.jsonrpc(query)
 
     @classmethod
-    def countDown(cls, counter=5):
+    def countDown(cls, counter=COUNTDOWN_TIME):
 
         __bar = 0
         __percent = 0
