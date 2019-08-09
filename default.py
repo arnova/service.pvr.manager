@@ -536,6 +536,7 @@ class Manager(object):
         mon = xbmc.Monitor()
         uit = UserIdleThread()
         uit.start()
+        auto_mode_pb = xbmcgui.DialogProgressBG()
 
         while (1):
             if resumed or first_start:
@@ -545,6 +546,8 @@ class Manager(object):
                 # Check if we resumed automatically
                 if self.__flags & (isREC | isEPG | isPRG | isNET):
                     auto_mode = True
+                    auto_mode_pb.create(LS(30015), LS(30011) % __counter)
+                    auto_mode_pb.update(100) # 100%, counting down
                     tools.writeLog('Wakeup in automode', level=xbmc.LOGNOTICE)
 
                     if (self.__flags & isEPG) and self.__epg_grab_ext and os.path.isfile(EXTGRABBER):
@@ -599,6 +602,7 @@ class Manager(object):
                     idle_timer = 0
                     if auto_mode:
                         auto_mode = False
+                        auto_mode_pb.close()
                         tools.writeLog('User interaction detected, disabling automode')
 
                 # Check if power off event was set
@@ -662,6 +666,9 @@ class Manager(object):
                             auto_mode = True  # Enable for countdown dialog
 
             if power_off:
+                # Close dialog
+                auto_mode_pb.close()
+
                 # Set power off event. This is in case suspend in the shutdown script fails,
                 # as a fallback it will then reboot and immediately power off
                 self.setPowerOffEvent()
