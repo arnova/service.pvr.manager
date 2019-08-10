@@ -662,6 +662,9 @@ class Manager(object):
                             auto_mode = True  # Enable for countdown dialog
 
             if power_off:
+                # Set power off event. This is in case suspend in the shutdown script fails,
+                # as a fallback it will then reboot and immediately power off
+                self.setPowerOffEvent()
                 # Set RTC wakeup + suspend system:
                 # NOTE: setWakeup() will block when the system suspends
                 #       and continue as soon as it resumes again
@@ -669,7 +672,7 @@ class Manager(object):
                     resumed = True                    # Notify next iteration we have resumed from suspend
                     uit.IsUserActive()                # Reset user active event
                     resume_last = int(time.time())    # Save resume time for later use
-                    self.getPowerOffEvent()           # Reset power off event, just in case
+                    self.getPowerOffEvent()           # Reset power off event
                     tools.writeLog('Resume point passed', level=xbmc.LOGNOTICE)
 
                 power_off = False # Reset power off flag
