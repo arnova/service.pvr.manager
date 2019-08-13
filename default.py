@@ -105,6 +105,8 @@ class Manager(object):
         self.__wakeUpUTEpg = None
         self.__monitored_ports = ''
         self.__flags = isUSR
+        self.__auto_mode = False
+        self.__dialog_pb = xbmcgui.DialogProgressBG()
         self.rndProcNum = random.randint(1, 1024)
         self.hasPVR = None
 
@@ -228,7 +230,6 @@ class Manager(object):
     # Connect to TVHeadend and establish connection (log in))
 
     def __getPvrStatusXML(self):
-
         _attempts = self.__maxattempts
 
         if not self.hasPVR:
@@ -269,7 +270,6 @@ class Manager(object):
         return False
 
     def readStatusXML(self, xmlnode):
-
         nodedata = []
         try:
             _xml = minidom.parseString(self.__xml)
@@ -385,6 +385,15 @@ class Manager(object):
 
         return True
 
+    def setAutoMode(self, mode):
+        if mode and not self.__auto_mode:
+            self.__auto_mode = True
+            self.__dialog_pb.create(__LS__(30010), __LS__(30011) % (AUTO_MODE_IDLE_SHUTDOWN * 60)) # Show shutdown time in seconds
+        elif not mode and self.__auto_mode:
+            self.__auto_mode = False
+            if self.__dialog_pb:
+                self.__dialog_pb.close()
+
     @staticmethod
     def disableScreensaver():
         # deactivate screensaver (send key select)
@@ -448,7 +457,7 @@ class Manager(object):
 
         return False # No event
 
-    def setWakeup(self, shutdown=True, countdown=True):
+    def setWakeup(self, shutdown=True):
         if not self.__wakeUpUT:
             tools.writeLog('No recordings or EPG update to schedule')
         elif self.__wakeUpUT == self.__wakeUpUTRec:
@@ -460,6 +469,9 @@ class Manager(object):
 #        tools.writeLog('Flags before shutdown are: {0:05b}'.format(self.__flags))
 
         if shutdown:
+            _countdown = self.__auto_mode # For automode show countdown dialog
+            self.setAutoMode(False)       # Always disable automode (+close dialog)
+
             # Show notifications
             if self.__nextsched:
                 if self.__wakeUpUT == self.__wakeUpUTRec:
@@ -469,7 +481,7 @@ class Manager(object):
                 else:
                     tools.Notify().notify(__LS__(30010), __LS__(30014))
 
-            if not countdown or not self.countDown():
+            if not _countdown or not self.countDown():
                 if xbmc.getCondVisibility('Player.Playing') or xbmc.getCondVisibility('Player.Paused'):
                     tools.writeLog('Stopping Player')
                     xbmc.Player().stop()
@@ -528,7 +540,6 @@ class Manager(object):
         idle_timer = 0
         wake_up_last = 0
         resume_last = 0
-        auto_mode = False
         resumed = False
         first_start = True
         power_off = False
@@ -536,7 +547,6 @@ class Manager(object):
         mon = xbmc.Monitor()
         uit = UserIdleThread()
         uit.start()
-        auto_mode_pb = xbmcgui.DialogProgressBG()
 
         while (1):
             if resumed or first_start:
@@ -545,9 +555,7 @@ class Manager(object):
 
                 # Check if we resumed automatically
                 if self.__flags & (isREC | isEPG | isPRG | isNET):
-                    auto_mode = True
-                    auto_mode_pb.create(LS(30015), LS(30011) % __counter)
-                    auto_mode_pb.update(100) # 100%, counting down
+                    self.setAutoMode(True)
                     tools.writeLog('Wakeup in automode', level=xbmc.LOGNOTICE)
 
                     if (self.__flags & isEPG) and self.__epg_grab_ext and os.path.isfile(EXTGRABBER):
@@ -571,7 +579,7 @@ class Manager(object):
 
                 if resumed and os.path.isfile(RESUME_SCRIPT):
                     _user_idle = not uit.IsUserActive(False)
-                    xbmc.executebuiltin("XBMC.RunScript(%s, %s, %s)" % (RESUME_SCRIPT, int(auto_mode), int(_user_idle)))
+                    xbmc.executebuiltin("XBMC.RunScript(%s, %s, %s)" % (RESUME_SCRIPT, int(self.__auto_mode), int(_user_idle)))
 
                 # Reset flags
                 #############
@@ -600,10 +608,9 @@ class Manager(object):
                 # User activity detected?
                 if uit.IsUserActive():
                     idle_timer = 0
-                    if auto_mode:
-                        auto_mode = False
-                        auto_mode_pb.close()
+                    if self.__auto_mode:
                         tools.writeLog('User interaction detected, disabling automode')
+                        self.setAutoMode(False)
 
                 # Check if power off event was set
                 if self.getPowerOffEvent():
@@ -621,19 +628,19 @@ class Manager(object):
                         if (self.__flags & isREC):
                             tools.Notify().notify(__LS__(30015), __LS__(30020), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Recording in progress'
                             tools.writeLog('Recording in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            auto_mode = True
+                            self.setAutoMode(True)
                         elif (self.__flags & isEPG):
                             tools.Notify().notify(__LS__(30015), __LS__(30021), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'EPG-Update'
                             tools.writeLog('EPG-update in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            auto_mode = True
+                            self.setAutoMode(True)
                         elif (self.__flags & isPRG):
                             tools.Notify().notify(__LS__(30015), __LS__(30022), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Postprocessing'
                             tools.writeLog('Postprocessing in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            auto_mode = True
+                            self.setAutoMode(True)
                         elif (self.__flags & isNET):
                             tools.Notify().notify(__LS__(30015), __LS__(30023), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Network active'
                             tools.writeLog('Network active: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            auto_mode = True
+                            self.setAutoMode(True)
                         else:
                             power_off = True
                             break # Break wait loop so we can perform power off
@@ -659,31 +666,27 @@ class Manager(object):
                         idle_timer = 0
                     else:
                         idle_timer += 1
-                        if idle_timer > (IDLE_SHUTDOWN if not auto_mode else AUTO_MODE_IDLE_SHUTDOWN):
+                        if idle_timer > (IDLE_SHUTDOWN if not self.__auto_mode else AUTO_MODE_IDLE_SHUTDOWN):
                             tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
                             idle_timer = 0    # In case powerdown is aborted by user
                             power_off = True
-                            auto_mode = True  # Enable for countdown dialog
+                            self.setAutoMode(True)  # Enable auto-mode for countdown dialog
 
             if power_off:
-                # Close dialog
-                auto_mode_pb.close()
-
                 # Set power off event. This is in case suspend in the shutdown script fails,
                 # as a fallback it will then reboot and immediately power off
                 self.setPowerOffEvent()
                 # Set RTC wakeup + suspend system:
                 # NOTE: setWakeup() will block when the system suspends
                 #       and continue as soon as it resumes again
-                if self.setWakeup(countdown=auto_mode):
+                if self.setWakeup():
                     resumed = True                    # Notify next iteration we have resumed from suspend
                     uit.IsUserActive()                # Reset user active event
                     resume_last = int(time.time())    # Save resume time for later use
                     self.getPowerOffEvent()           # Reset power off event
                     tools.writeLog('Resume point passed', level=xbmc.LOGNOTICE)
 
-                power_off = False # Reset power off flag
-                auto_mode = False # Always disable automode
+                power_off = False       # Reset power off flag
 
         ### END MAIN LOOP ###
         uit.stop() # Stop user idle thread
