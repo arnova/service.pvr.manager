@@ -382,9 +382,8 @@ class Manager(object):
 
     def enableAutoMode(self):
         if self.__dialog_pb is None:
-            Manager.disableScreensaver()
             self.__dialog_pb = xbmcgui.DialogProgressBG()
-            self.__dialog_pb.create(__LS__(30010), __LS__(30011) % (IDLE_COUNTDOWN_TIME))
+            self.__dialog_pb.create(__LS__(30010), "")
         self.__auto_mode_set = IDLE_COUNTDOWN_TIME
         self.__auto_mode_counter = 0
 
@@ -398,6 +397,7 @@ class Manager(object):
     def updateAutoModeDialog(self):
         if not self.__dialog_pb is None:
             if self.__auto_mode_counter == 0:
+                Manager.disableScreensaver()
                 tools.writeLog('Display countdown dialog for %s secs' % (self.__auto_mode_set))
                 if xbmc.getCondVisibility('VideoPlayer.isFullscreen'):
                     tools.writeLog('Countdown possibly invisible (fullscreen mode)')
