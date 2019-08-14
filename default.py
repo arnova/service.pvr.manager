@@ -28,14 +28,11 @@ RESUME_MARGIN = 15
 # Amount of minutes idle after which we'll (auto) shutdown
 IDLE_SHUTDOWN = 30
 
-# Amount of minutes idle after automode ends we'll (auto) shutdown
-AUTO_MODE_IDLE_SHUTDOWN = 2
+# Countdown time in seconds when idle timer expires and automatically shutting down
+IDLE_COUNTDOWN_TIME = 10
 
-# Countdown time in seconds when automatically shutting down
-COUNTDOWN_TIME = 10
-
-# Slow cycle time (seconds)
-SLOW_CYCLE = 60
+# Amount of seconds idle after automode ends we'll (auto) shutdown
+AUTO_MODE_IDLE_SHUTDOWN = 120
 
 SHUTDOWN_CMD = xbmc.translatePath(os.path.join(__path__, 'resources', 'lib', 'shutdown.sh'))
 EXTGRABBER = xbmc.translatePath(os.path.join(__path__, 'resources', 'lib', 'epggrab_ext.sh'))
@@ -451,8 +448,6 @@ class Manager(object):
 #        tools.writeLog('Flags before shutdown are: {0:05b}'.format(self.__flags))
 
         if shutdown:
-            self.setAutoMode(0)       # Always disable automode (+close dialog)
-
             # Show notifications
             if self.__nextsched:
                 if self.__wakeUpUT == self.__wakeUpUTRec:
@@ -579,8 +574,10 @@ class Manager(object):
 
             # 1 Minute wait loop
             wait_count = 0
+            SLOW_CYCLE = 60
             while wait_count < SLOW_CYCLE:
                 wait_count += 1
+
                 if mon.waitForAbort(1):
                     tools.writeLog('Service with id %s aborted' % (self.rndProcNum), level=xbmc.LOGNOTICE)
                     return
@@ -591,6 +588,11 @@ class Manager(object):
                     if self.__auto_mode_set:
                         tools.writeLog('User interaction detected, disabling automode')
                         self.setAutoMode(0)
+
+                # Update countdown dialog
+                if self.__auto_mode_set:
+                    if self.updateCountDownDialog():
+                        power_off = True # Countdown reached 0
 
                 # Check if power off event was set
                 if self.getPowerOffEvent():
@@ -642,24 +644,23 @@ class Manager(object):
                     xbmc.executebuiltin('XBMC.InhibitIdleShutdown(false)')
 
                     # Auto shutdown handling
-                    if xbmc.getCondVisibility('Player.Playing'):
+                    if xbmc.getCondVisibility('Player.Playing') or self.__auto_mode_set:
                         idle_timer = 0
                     else:
-                        # Update countdown dialog
-                        if self.__auto_mode_set:
-                            if self.updateCountDownDialog():
-                                power_off = True # Countdown reached 0
-                        else:
-                            idle_timer += 1
-                            if idle_timer > IDLE_SHUTDOWN:
-                                tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
-                                idle_timer = 0    # In case powerdown is aborted by user
-                                self.setAutoMode(COUNTDOWN_TIME)  # Enable auto-mode for countdown dialog
+                        idle_timer += 1
+                        if idle_timer > IDLE_SHUTDOWN:
+                            tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
+                            idle_timer = 0    # In case powerdown is aborted by user
+                            self.setAutoMode(IDLE_COUNTDOWN_TIME)  # Enable auto-mode (also for countdown dialog)
 
             if power_off:
                 # Set power off event. This is in case suspend in the shutdown script fails,
                 # as a fallback it will then reboot and immediately power off
                 self.setPowerOffEvent()
+
+                # Always disable automode (+close dialog)
+                self.setAutoMode(0)
+
                 # Set RTC wakeup + suspend system:
                 # NOTE: setWakeup() will block when the system suspends
                 #       and continue as soon as it resumes again
