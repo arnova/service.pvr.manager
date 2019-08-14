@@ -32,7 +32,7 @@ IDLE_SHUTDOWN = 30
 IDLE_COUNTDOWN_TIME = 10
 
 # Amount of seconds idle after automode ends we'll (auto) shutdown
-AUTO_MODE_IDLE_SHUTDOWN = 120
+AUTO_MODE_COUNTDOWN_TIME = 120
 
 SHUTDOWN_CMD = xbmc.translatePath(os.path.join(__path__, 'resources', 'lib', 'shutdown.sh'))
 EXTGRABBER = xbmc.translatePath(os.path.join(__path__, 'resources', 'lib', 'epggrab_ext.sh'))
@@ -104,7 +104,7 @@ class Manager(object):
         self.__flags = isUSR
         self.__auto_mode_set = 0
         self.__auto_mode_counter = 0
-        self.__dialog_pb = xbmcgui.DialogProgressBG()
+        self.__dialog_pb = None
         self.rndProcNum = random.randint(1, 1024)
         self.hasPVR = None
 
@@ -385,33 +385,32 @@ class Manager(object):
 
     def setAutoMode(self, countDownTime):
         if countDownTime:
-            if self.__dialog_pb:
-                self.__dialog_pb.update(__LS__(30010), __LS__(30011) % countDownTime)
-            else:
+            if self.__dialog_pb is None:
                 Manager.disableScreensaver()
-                self.__dialog_pb.create(__LS__(30010), __LS__(30011) % countDownTime)
-                tools.writeLog('Display countdown dialog for %s secs' % countDownTime)
+                self.__dialog_pb = xbmcgui.DialogProgressBG()
+                self.__dialog_pb.create(__LS__(30010), __LS__(30011) % (countDownTime))
+                tools.writeLog('Display countdown dialog for %s secs' % (countDownTime))
                 if xbmc.getCondVisibility('VideoPlayer.isFullscreen'):
                     tools.writeLog('Countdown possibly invisible (fullscreen mode)')
                     tools.writeLog('Showing additional notification')
                     tools.Notify().notify(__LS__(30010), __LS__(30011) % (countDownTime))
-        else:
-            if self.__dialog_pb:
-                self.__dialog_pb.close()
+        elif not self.__dialog_pb is None:
+            self.__dialog_pb.close()
+            self.__dialog_pb = None
         self.__auto_mode_set = countDownTime
-        self.__auto_mode_counter = countDownTime
+        self.__auto_mode_counter = 0
 
     def updateAutoModeDialog(self):
-        # actualize progressbar
-        if self.__auto_mode_counter:
-            __percent = int(self.__auto_mode_counter * 100 / self.__auto_mode_set)
-            self.__dialog_pb.update(__percent, __LS__(30010), __LS__(30011) % (self.__auto_mode_set - self.__auto_mode_counter))
+        if not self.__dialog_pb is None:
+            # actualize progressbar
+            if self.__auto_mode_counter < self.__auto_mode_set:
+                __percent = int(self.__auto_mode_counter * 100 / self.__auto_mode_set)
+                self.__dialog_pb.update(__percent, __LS__(30010), __LS__(30011) % (self.__auto_mode_set - self.__auto_mode_counter))
 
-            self.__auto_mode_counter -= 1
-        if self.__auto_mode_counter == 0:
-            return True
-        else:
-            return False
+                self.__auto_mode_counter += 1
+            if self.__auto_mode_counter == self.__auto_mode_set:
+                return True
+        return False
 
     @staticmethod
     def disableScreensaver():
@@ -531,7 +530,7 @@ class Manager(object):
 
                 # Check if we resumed automatically
                 if self.__flags & (isREC | isEPG | isPRG | isNET):
-                    self.setAutoMode(AUTO_MODE_IDLE_SHUTDOWN)
+                    self.setAutoMode(AUTO_MODE_COUNTDOWN_TIME)
                     tools.writeLog('Wakeup in automode', level=xbmc.LOGNOTICE)
 
                     if (self.__flags & isEPG) and self.__epg_grab_ext and os.path.isfile(EXTGRABBER):
@@ -590,8 +589,8 @@ class Manager(object):
                         tools.writeLog('User interaction detected, disabling automode')
                         self.setAutoMode(0)
 
-                # Update countdown dialog
-                if self.__auto_mode_set:
+                # Update countdown dialog (if any)
+                if not self.__flags & (isREC | isEPG | isPRG | isNET):
                     if self.updateAutoModeDialog():
                         power_off = True  # Countdown reached 0
                         break             # Break loop so we can power off
@@ -612,19 +611,19 @@ class Manager(object):
                         if (self.__flags & isREC):
                             tools.Notify().notify(__LS__(30015), __LS__(30020), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Recording in progress'
                             tools.writeLog('Recording in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            self.setAutoMode(AUTO_MODE_IDLE_SHUTDOWN)
+                            self.setAutoMode(AUTO_MODE_COUNTDOWN_TIME)
                         elif (self.__flags & isEPG):
                             tools.Notify().notify(__LS__(30015), __LS__(30021), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'EPG-Update'
                             tools.writeLog('EPG-update in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            self.setAutoMode(AUTO_MODE_IDLE_SHUTDOWN)
+                            self.setAutoMode(AUTO_MODE_COUNTDOWN_TIME)
                         elif (self.__flags & isPRG):
                             tools.Notify().notify(__LS__(30015), __LS__(30022), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Postprocessing'
                             tools.writeLog('Postprocessing in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            self.setAutoMode(AUTO_MODE_IDLE_SHUTDOWN)
+                            self.setAutoMode(AUTO_MODE_COUNTDOWN_TIME)
                         elif (self.__flags & isNET):
                             tools.Notify().notify(__LS__(30015), __LS__(30023), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Network active'
                             tools.writeLog('Network active: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            self.setAutoMode(AUTO_MODE_IDLE_SHUTDOWN)
+                            self.setAutoMode(AUTO_MODE_COUNTDOWN_TIME)
                         else:
                             power_off = True
                             break # Break wait loop so we can perform power off
