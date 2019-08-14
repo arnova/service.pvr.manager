@@ -412,10 +412,11 @@ class Manager(object):
 
     def updateCountDownDialog(self):
         # actualize progressbar
-        __percent = int(self.__auto_mode_counter * 100 / self.__auto_mode_set)
-        self.__dialog_pb.update(__percent, __LS__(30010), __LS__(30011) % (self.__auto_mode_set - self.__auto_mode_counter))
+        if self.__auto_mode_counter:
+            __percent = int(self.__auto_mode_counter * 100 / self.__auto_mode_set)
+            self.__dialog_pb.update(__percent, __LS__(30010), __LS__(30011) % (self.__auto_mode_set - self.__auto_mode_counter))
 
-        self.__auto_mode_counter -= 1
+            self.__auto_mode_counter -= 1
         if self.__auto_mode_counter == 0:
             return True
         else:
