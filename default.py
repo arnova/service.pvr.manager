@@ -401,16 +401,7 @@ class Manager(object):
         self.__auto_mode_set = countDownTime
         self.__auto_mode_counter = countDownTime
 
-    @staticmethod
-    def disableScreensaver():
-        # deactivate screensaver (send key select)
-        if xbmc.getCondVisibility('System.ScreenSaverActive'):
-            query = {
-                "method": "Input.Select"
-            }
-            tools.jsonrpc(query)
-
-    def updateCountDownDialog(self):
+    def updateAutoModeDialog(self):
         # actualize progressbar
         if self.__auto_mode_counter:
             __percent = int(self.__auto_mode_counter * 100 / self.__auto_mode_set)
@@ -421,6 +412,15 @@ class Manager(object):
             return True
         else:
             return False
+
+    @staticmethod
+    def disableScreensaver():
+        # deactivate screensaver (send key select)
+        if xbmc.getCondVisibility('System.ScreenSaverActive'):
+            query = {
+                "method": "Input.Select"
+            }
+            tools.jsonrpc(query)
 
     def setPowerOffEvent(self):
         # Create notification file
@@ -592,7 +592,7 @@ class Manager(object):
 
                 # Update countdown dialog
                 if self.__auto_mode_set:
-                    if self.updateCountDownDialog():
+                    if self.updateAutoModeDialog():
                         power_off = True # Countdown reached 0
 
                 # Check if power off event was set
