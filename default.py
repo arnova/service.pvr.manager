@@ -593,7 +593,8 @@ class Manager(object):
                 # Update countdown dialog
                 if self.__auto_mode_set:
                     if self.updateAutoModeDialog():
-                        power_off = True # Countdown reached 0
+                        power_off = True  # Countdown reached 0
+                        break             # Break loop so we can power off
 
                 # Check if power off event was set
                 if self.getPowerOffEvent():
