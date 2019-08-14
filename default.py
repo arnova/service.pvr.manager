@@ -31,9 +31,6 @@ IDLE_SHUTDOWN = 30
 # Countdown time in seconds when idle timer expires and automatically shutting down
 IDLE_COUNTDOWN_TIME = 10
 
-# Amount of seconds idle after automode ends we'll (auto) shutdown
-AUTO_MODE_COUNTDOWN_TIME = 120
-
 SHUTDOWN_CMD = xbmc.translatePath(os.path.join(__path__, 'resources', 'lib', 'shutdown.sh'))
 EXTGRABBER = xbmc.translatePath(os.path.join(__path__, 'resources', 'lib', 'epggrab_ext.sh'))
 
@@ -383,25 +380,30 @@ class Manager(object):
 
         return True
 
-    def setAutoMode(self, countDownTime):
-        if countDownTime:
-            if self.__dialog_pb is None:
-                Manager.disableScreensaver()
-                self.__dialog_pb = xbmcgui.DialogProgressBG()
-                self.__dialog_pb.create(__LS__(30010), __LS__(30011) % (countDownTime))
-                tools.writeLog('Display countdown dialog for %s secs' % (countDownTime))
-                if xbmc.getCondVisibility('VideoPlayer.isFullscreen'):
-                    tools.writeLog('Countdown possibly invisible (fullscreen mode)')
-                    tools.writeLog('Showing additional notification')
-                    tools.Notify().notify(__LS__(30010), __LS__(30011) % (countDownTime))
-        elif not self.__dialog_pb is None:
+    def enableAutoMode(self):
+        if self.__dialog_pb is None:
+            Manager.disableScreensaver()
+            self.__dialog_pb = xbmcgui.DialogProgressBG()
+            self.__dialog_pb.create(__LS__(30010), __LS__(30011) % (IDLE_COUNTDOWN_TIME))
+        self.__auto_mode_set = IDLE_COUNTDOWN_TIME
+        self.__auto_mode_counter = 0
+
+    def disableAutoMode(self):
+        if not self.__dialog_pb is None:
             self.__dialog_pb.close()
             self.__dialog_pb = None
-        self.__auto_mode_set = countDownTime
+        self.__auto_mode_set = 0
         self.__auto_mode_counter = 0
 
     def updateAutoModeDialog(self):
         if not self.__dialog_pb is None:
+            if self.__auto_mode_counter == 0:
+                tools.writeLog('Display countdown dialog for %s secs' % (self.__auto_mode_set))
+                if xbmc.getCondVisibility('VideoPlayer.isFullscreen'):
+                    tools.writeLog('Countdown possibly invisible (fullscreen mode)')
+                    tools.writeLog('Showing additional notification')
+                    tools.Notify().notify(__LS__(30010), __LS__(30011) % (self.__auto_mode_set))
+
             # actualize progressbar
             if self.__auto_mode_counter < self.__auto_mode_set:
                 __percent = int(self.__auto_mode_counter * 100 / self.__auto_mode_set)
@@ -530,7 +532,7 @@ class Manager(object):
 
                 # Check if we resumed automatically
                 if self.__flags & (isREC | isEPG | isPRG | isNET):
-                    self.setAutoMode(AUTO_MODE_COUNTDOWN_TIME)
+                    self.enableAutoMode()
                     tools.writeLog('Wakeup in automode', level=xbmc.LOGNOTICE)
 
                     if (self.__flags & isEPG) and self.__epg_grab_ext and os.path.isfile(EXTGRABBER):
@@ -587,7 +589,7 @@ class Manager(object):
                     idle_timer = 0
                     if self.__auto_mode_set:
                         tools.writeLog('User interaction detected, disabling automode')
-                        self.setAutoMode(0)
+                        self.disableAutoMode()
 
                 # Update countdown dialog (if any)
                 if not self.__flags & (isREC | isEPG | isPRG | isNET):
@@ -611,19 +613,19 @@ class Manager(object):
                         if (self.__flags & isREC):
                             tools.Notify().notify(__LS__(30015), __LS__(30020), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Recording in progress'
                             tools.writeLog('Recording in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            self.setAutoMode(AUTO_MODE_COUNTDOWN_TIME)
+                            self.enableAutoMode()
                         elif (self.__flags & isEPG):
                             tools.Notify().notify(__LS__(30015), __LS__(30021), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'EPG-Update'
                             tools.writeLog('EPG-update in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            self.setAutoMode(AUTO_MODE_COUNTDOWN_TIME)
+                            self.enableAutoMode()
                         elif (self.__flags & isPRG):
                             tools.Notify().notify(__LS__(30015), __LS__(30022), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Postprocessing'
                             tools.writeLog('Postprocessing in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            self.setAutoMode(AUTO_MODE_COUNTDOWN_TIME)
+                            self.enableAutoMode()
                         elif (self.__flags & isNET):
                             tools.Notify().notify(__LS__(30015), __LS__(30023), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Network active'
                             tools.writeLog('Network active: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
-                            self.setAutoMode(AUTO_MODE_COUNTDOWN_TIME)
+                            self.enableAutoMode()
                         else:
                             power_off = True
                             break # Break wait loop so we can perform power off
@@ -652,7 +654,7 @@ class Manager(object):
                         if idle_timer > IDLE_SHUTDOWN:
                             tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
                             idle_timer = 0    # In case powerdown is aborted by user
-                            self.setAutoMode(IDLE_COUNTDOWN_TIME)  # Enable auto-mode (also for countdown dialog)
+                            self.enableAutoMode()  # Enable auto-mode (also for countdown dialog)
 
             if power_off:
                 # Set power off event. This is in case suspend in the shutdown script fails,
@@ -660,7 +662,7 @@ class Manager(object):
                 self.setPowerOffEvent()
 
                 # Always disable automode (+close dialog)
-                self.setAutoMode(0)
+                self.disableAutoMode()
 
                 # Set RTC wakeup + suspend system:
                 # NOTE: setWakeup() will block when the system suspends
