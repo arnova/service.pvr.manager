@@ -423,11 +423,13 @@ class Manager(object):
             }
             tools.jsonrpc(query)
 
-    def setPowerOffEvent(self):
+    @staticmethod
+    def setPowerOffEvent():
         # Create notification file
         open(POWER_OFF_FILE, 'w').close()
 
-    def getPowerOffEvent(self, remove=True):
+    @staticmethod
+    def getPowerOffEvent(remove=True):
         if os.path.isfile(POWER_OFF_FILE):
             if remove:
                 try:
