@@ -397,7 +397,7 @@ class Manager(object):
     def updateAutoModeDialog(self):
         if not self.__dialog_pb is None:
             if self.__auto_mode_counter == 0:
-                Manager.disableScreensaver()
+                self.disableScreensaver()
                 tools.writeLog('Display countdown dialog for %s secs' % (self.__auto_mode_set))
                 if xbmc.getCondVisibility('VideoPlayer.isFullscreen'):
                     tools.writeLog('Countdown possibly invisible (fullscreen mode)')
@@ -641,7 +641,7 @@ class Manager(object):
                 # and prevent the screensaver from starting
                 if self.__flags & (isREC | isEPG | isPRG | isNET):
                     xbmc.executebuiltin('XBMC.InhibitIdleShutdown(true)')
-                    #Manager.disableScreensaver() # Doesn't work as intended
+                    #self.disableScreensaver() # Doesn't work as intended
 
                     # (Re)set idle timer
                     idle_timer = 0
