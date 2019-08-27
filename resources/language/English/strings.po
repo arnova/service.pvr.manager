@@ -55,7 +55,7 @@ msgid "Shutdown requires admin privileges"
 msgstr ""
 
 msgctxt "#30010"
-msgid "Shutdown in Progress"
+msgid "Shutdown scheduled"
 msgstr ""
 
 msgctxt "#30011"
@@ -75,7 +75,7 @@ msgid "System will shutdown now"
 msgstr ""
 
 msgctxt "#30015"
-msgid "Shutdown scheduled"
+msgid "Shutdown postponed"
 msgstr ""
 
 msgctxt "#30016"
