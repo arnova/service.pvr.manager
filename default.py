@@ -504,6 +504,7 @@ class Manager(object):
                 tools.dialogOK(__LS__(30067), __LS__(30069) % (self.__smtpto))
             return
         elif mode == 'POWEROFF':
+            tools.Notify().notify(__LS__(30010), __LS__(30013))
             tools.writeLog('Poweroff command received', level=xbmc.LOGNOTICE)
 
             # Notify service loop of power off event
@@ -650,9 +651,11 @@ class Manager(object):
 
                     # Auto shutdown handling
                     if xbmc.getCondVisibility('Player.Playing') or self.__auto_mode_set:
+                        tools.writeLog('Player is playing or automode set, resetting idle timer')
                         idle_timer = 0
                     else:
                         idle_timer += 1
+                        tools.writeLog('No user activity for %s minutes' % idle_timer)
                         if idle_timer > IDLE_SHUTDOWN:
                             tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
                             idle_timer = 0    # In case powerdown is aborted by user
