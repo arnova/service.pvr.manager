@@ -214,7 +214,7 @@ class Manager(object):
                 __s_conn.close()
                 tools.writeLog('Mail delivered to %s.' % (self.__smtpto), level=xbmc.LOGNOTICE)
                 return True
-            except Exception, e:
+            except Exception as e:
                 tools.writeLog('Mail could not be delivered. Check your settings.', level=xbmc.LOGERROR)
                 tools.writeLog(e)
                 return False
