@@ -239,7 +239,7 @@ class Manager(object):
                     conn = requests.get('%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPDigestAuth(self.__user, self.__pass))
                     conn.close()
                     if conn.status_code == 200:
-                        tools.writeLog('Getting status.xml (Digest Auth)')
+#                        tools.writeLog('Getting status.xml (Digest Auth)')
                         self.__xml = conn.content
                         return True
                     else:
@@ -247,7 +247,7 @@ class Manager(object):
                         conn = requests.get('%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPBasicAuth(self.__user, self.__pass))
                         conn.close()
                         if conn.status_code == 200:
-                            tools.writeLog('Getting status.xml (Basic Auth)')
+#                            tools.writeLog('Getting status.xml (Basic Auth)')
                             self.__xml = conn.content
                             return True
 
@@ -426,7 +426,12 @@ class Manager(object):
     @staticmethod
     def setPowerOffEvent():
         # Create notification file
-        open(POWER_OFF_FILE, 'w').close()
+        try:
+            open(POWER_OFF_FILE, 'w').close()
+            return True
+        except IOError:
+            tools.writeLog('Unable to create power off file %s' % POWER_OFF_FILE, level=xbmc.LOGERROR)
+            return False
 
     @staticmethod
     def getPowerOffEvent(remove=True):
@@ -434,9 +439,10 @@ class Manager(object):
             if remove:
                 try:
                     os.remove(POWER_OFF_FILE)
-                    return True
                 except OSError:
+                    tools.writeLog('Unable to remove power off file %s' % POWER_OFF_FILE, level=xbmc.LOGERROR)
                     return False
+            return True
 
         return False # No event
 
