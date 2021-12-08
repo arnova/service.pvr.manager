@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import sys, os, stat, subprocess
-import xbmc, xbmcaddon, xbmcgui
+import xbmc, xbmcaddon, xbmcgui, xbmcvfs
 import time, datetime, random
 import requests
 import threading
@@ -17,10 +17,10 @@ __path__ = __addon__.getAddonInfo('path')
 __LS__ = __addon__.getLocalizedString
 
 # File for power off event
-POWER_OFF_FILE = xbmc.translatePath('special://temp/.pbc_poweroff')
+POWER_OFF_FILE = xbmcvfs.translatePath('special://temp/.pbc_poweroff')
 
 # Script to be executed on resume (from suspend/hibernate)
-RESUME_SCRIPT = xbmc.translatePath('special://userdata/resume.py')
+RESUME_SCRIPT = xbmcvfs.translatePath('special://userdata/resume.py')
 
 # Resume margin used (in seconds)
 RESUME_MARGIN = 15
@@ -31,8 +31,8 @@ IDLE_SHUTDOWN = 30
 # Countdown time in seconds when idle timer expires and automatically shutting down
 IDLE_COUNTDOWN_TIME = 10
 
-SHUTDOWN_CMD = xbmc.translatePath(os.path.join(__path__, 'resources', 'lib', 'shutdown.sh'))
-EXTGRABBER = xbmc.translatePath(os.path.join(__path__, 'resources', 'lib', 'epggrab_ext.sh'))
+SHUTDOWN_CMD = xbmcvfs.translatePath(os.path.join(__path__, 'resources', 'lib', 'shutdown.sh'))
+EXTGRABBER = xbmcvfs.translatePath(os.path.join(__path__, 'resources', 'lib', 'epggrab_ext.sh'))
 
 # set permissions for these files, this is required after installation or update
 _sts = os.stat(SHUTDOWN_CMD)
@@ -151,9 +151,9 @@ class Manager(object):
         self.__epg_time = tools.getAddonSetting('epgtimer_time', sType=tools.NUM)
         self.__epg_duration = tools.getAddonSetting('epgtimer_duration', sType=tools.NUM)
         self.__epg_grab_ext = tools.getAddonSetting('epg_grab_ext', sType=tools.BOOL)
-        self.__epg_socket = xbmc.translatePath(tools.getAddonSetting('epg_socket_path'))
+        self.__epg_socket = xbmcvfs.translatePath(tools.getAddonSetting('epg_socket_path'))
         self.__epg_store = tools.getAddonSetting('store_epg', sType=tools.BOOL)
-        self.__epg_path = xbmc.translatePath(os.path.join(tools.getAddonSetting('epg_path'), 'epg.xml'))
+        self.__epg_path = xbmcvfs.translatePath(os.path.join(tools.getAddonSetting('epg_path'), 'epg.xml'))
 
         tools.writeLog('Settings loaded')
 
@@ -212,7 +212,7 @@ class Manager(object):
                 __s_conn.login(self.__smtpuser, self.__smtppass)
                 __s_conn.sendmail(self.__smtpfrom, self.__smtpto, __s_msg.as_string())
                 __s_conn.close()
-                tools.writeLog('Mail delivered to %s.' % (self.__smtpto), level=xbmc.LOGNOTICE)
+                tools.writeLog('Mail delivered to %s.' % (self.__smtpto), level=xbmc.LOGINFO)
                 return True
             except Exception as e:
                 tools.writeLog('Mail could not be delivered. Check your settings.', level=xbmc.LOGERROR)
@@ -454,7 +454,7 @@ class Manager(object):
         elif self.__wakeUpUT == self.__wakeUpUTEpg:
             tools.writeLog('EPG update wake-up time: %s' % (self.__wakeUp.strftime('%d.%m.%y %H:%M')))
 
-        tools.writeLog('Wake-up Unix time: %s' % (self.__wakeUpUT), xbmc.LOGNOTICE)
+        tools.writeLog('Wake-up Unix time: %s' % (self.__wakeUpUT), xbmc.LOGINFO)
 #        tools.writeLog('Flags before shutdown are: {0:05b}'.format(self.__flags))
 
         if shutdown:
@@ -471,7 +471,7 @@ class Manager(object):
                 tools.writeLog('Stopping Player')
                 xbmc.Player().stop()
 
-            tools.writeLog('Instruct the system to shut down using %s' % ('Application' if self.__shutdown == 0 else 'OS'), xbmc.LOGNOTICE)
+            tools.writeLog('Instruct the system to shut down using %s' % ('Application' if self.__shutdown == 0 else 'OS'), xbmc.LOGINFO)
             os.system('%s%s %s %s' % (self.__sudo, SHUTDOWN_CMD, self.__wakeUpUT, self.__shutdown))
             if self.__shutdown == 0:
                 xbmc.shutdown()
@@ -511,7 +511,7 @@ class Manager(object):
             return
         elif mode == 'POWEROFF':
             tools.Notify().notify(__LS__(30010), __LS__(30013))
-            tools.writeLog('Poweroff command received', level=xbmc.LOGNOTICE)
+            tools.writeLog('Poweroff command received', level=xbmc.LOGINFO)
 
             # Notify service loop of power off event
             self.setPowerOffEvent()
@@ -521,7 +521,7 @@ class Manager(object):
             return
 
         ### START SERVICE LOOP ###
-        tools.writeLog('Starting service', level=xbmc.LOGNOTICE)
+        tools.writeLog('Starting service', level=xbmc.LOGINFO)
 
         idle_timer = 0
         wake_up_last = 0
@@ -542,7 +542,7 @@ class Manager(object):
                 # Check if we resumed automatically
                 if self.__flags & (isREC | isEPG | isPRG | isNET):
                     self.enableAutoMode()
-                    tools.writeLog('Wakeup in automode', level=xbmc.LOGNOTICE)
+                    tools.writeLog('Wakeup in automode', level=xbmc.LOGINFO)
 
                     if (self.__flags & isEPG) and self.__epg_grab_ext and os.path.isfile(EXTGRABBER):
                         tools.writeLog('Starting script for grabbing external EPG')
@@ -565,7 +565,7 @@ class Manager(object):
 
                 if resumed and os.path.isfile(RESUME_SCRIPT):
                     _user_idle = not uit.IsUserActive(False)
-                    xbmc.executebuiltin("XBMC.RunScript(%s, %s, %s)" % (RESUME_SCRIPT, int(self.__auto_mode_set), int(_user_idle)))
+                    xbmc.executebuiltin("RunScript(%s, %s, %s)" % (RESUME_SCRIPT, int(self.__auto_mode_set), int(_user_idle)))
 
                 # Reset flags
                 #############
@@ -590,7 +590,7 @@ class Manager(object):
                 wait_count += 1
 
                 if mon.waitForAbort(1):
-                    tools.writeLog('Service with id %s aborted' % (self.rndProcNum), level=xbmc.LOGNOTICE)
+                    tools.writeLog('Service with id %s aborted' % (self.rndProcNum), level=xbmc.LOGINFO)
                     return
 
                 # User activity detected?
@@ -621,19 +621,19 @@ class Manager(object):
 
                         if (self.__flags & isREC):
                             tools.Notify().notify(__LS__(30015), __LS__(30020), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Recording in progress'
-                            tools.writeLog('Recording in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
+                            tools.writeLog('Recording in progress: Postponing poweroff with automode', level=xbmc.LOGINFO)
                             self.enableAutoMode()
                         elif (self.__flags & isEPG):
                             tools.Notify().notify(__LS__(30015), __LS__(30021), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'EPG-Update'
-                            tools.writeLog('EPG-update in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
+                            tools.writeLog('EPG-update in progress: Postponing poweroff with automode', level=xbmc.LOGINFO)
                             self.enableAutoMode()
                         elif (self.__flags & isPRG):
                             tools.Notify().notify(__LS__(30015), __LS__(30022), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Postprocessing'
-                            tools.writeLog('Postprocessing in progress: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
+                            tools.writeLog('Postprocessing in progress: Postponing poweroff with automode', level=xbmc.LOGINFO)
                             self.enableAutoMode()
                         elif (self.__flags & isNET):
                             tools.Notify().notify(__LS__(30015), __LS__(30023), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Network active'
-                            tools.writeLog('Network active: Postponing poweroff with automode', level=xbmc.LOGNOTICE)
+                            tools.writeLog('Network active: Postponing poweroff with automode', level=xbmc.LOGINFO)
                             self.enableAutoMode()
                         else:
                             power_off = True
@@ -683,7 +683,7 @@ class Manager(object):
                     uit.IsUserActive()                # Reset user active event
                     resume_last = int(time.time())    # Save resume time for later use
                     self.getPowerOffEvent()           # Reset power off event
-                    tools.writeLog('Resume point passed', level=xbmc.LOGNOTICE)
+                    tools.writeLog('Resume point passed', level=xbmc.LOGINFO)
 
                 power_off = False       # Reset power off flag
 
@@ -703,5 +703,5 @@ if __name__ == '__main__':
 
     TVHMan = Manager()
     TVHMan.start(mode)
-    tools.writeLog('Service with id %s (V.%s on %s) kicks off' % (TVHMan.rndProcNum, __version__, release.hostname), level=xbmc.LOGNOTICE)
+    tools.writeLog('Service with id %s (V.%s on %s) kicks off' % (TVHMan.rndProcNum, __version__, release.hostname), level=xbmc.LOGINFO)
     del TVHMan

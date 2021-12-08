@@ -17,7 +17,10 @@ def NUM():
     return 2
 
 def writeLog(message, level=xbmc.LOGDEBUG):
-    xbmc.log('[%s] %s' % (xbmcaddon.Addon().getAddonInfo('id'), message.encode('utf-8')), level)
+    if isinstance(message, bytes):
+      message = message.decode("utf-8")
+
+    xbmc.log(u'[%s] %s' % (xbmcaddon.Addon().getAddonInfo('id'), message), level=level)
 
 
 class Notify(object):
