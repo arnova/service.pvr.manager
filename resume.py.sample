@@ -19,5 +19,5 @@ except IndexError:
 # Optionally use the auto_mode/user_idle flags for conditional execution
 if not auto_mode:
 #    xbmc.executescript("special://home/some-path/your-script.py")
-    xbmc.executebuiltin('XBMC.RunAddon(addon_name_here)')
+    xbmc.executebuiltin('RunAddon(addon_name_here)')
 
