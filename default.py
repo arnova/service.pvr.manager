@@ -386,6 +386,7 @@ class Manager(object):
             self.__dialog_pb.create(__LS__(30010), "")
         self.__auto_mode_set = IDLE_COUNTDOWN_TIME
         self.__auto_mode_counter = 0
+        xbmc.executebuiltin('InhibitScreensaver(true)')
 
     def disableAutoMode(self):
         if not self.__dialog_pb is None:
@@ -393,6 +394,7 @@ class Manager(object):
             self.__dialog_pb = None
         self.__auto_mode_set = 0
         self.__auto_mode_counter = 0
+        xbmc.executebuiltin('InhibitScreensaver(false)')
 
     def updateAutoModeDialog(self):
         if not self.__dialog_pb is None:
@@ -647,13 +649,13 @@ class Manager(object):
                 # When flags are set, make sure we don't automatically shutdown
                 # and prevent the screensaver from starting
                 if self.__flags & (isREC | isEPG | isPRG | isNET):
-                    xbmc.executebuiltin('XBMC.InhibitIdleShutdown(true)')
+                    xbmc.executebuiltin('InhibitIdleShutdown(true)')
                     #self.disableScreensaver() # Doesn't work as intended
 
                     # (Re)set idle timer
                     idle_timer = 0
                 else:
-                    xbmc.executebuiltin('XBMC.InhibitIdleShutdown(false)')
+                    xbmc.executebuiltin('InhibitIdleShutdown(false)')
 
                     # Auto shutdown handling
                     if xbmc.getCondVisibility('Player.Playing') or self.__auto_mode_set:
