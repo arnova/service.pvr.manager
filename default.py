@@ -367,7 +367,7 @@ class Manager(object):
             for port in self.__monitored_ports:
                 nwc = subprocess.Popen('netstat -an | grep -iE "(established|verbunden)" | grep -v "127.0.0.1" | grep ":%s "' % port, stdout=subprocess.PIPE, shell=True).communicate()
                 nwc = nwc[0].strip()
-                if nwc and len(nwc.split('\n')) > 0:
+                if nwc and len(nwc.split(b'\n')) > 0:
                     self.__flags |= isNET
                     _port += '%s, ' % (port)
             if _port:
