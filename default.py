@@ -25,6 +25,10 @@ RESUME_SCRIPT = xbmcvfs.translatePath('special://userdata/resume.py')
 # Resume margin used (in seconds)
 RESUME_MARGIN = 15
 
+# (On)-Off-On margin to skip shutdown for upcoming scheduled recordings
+# within OFF_ON_MARGIN minutes
+OFF_ON_MARGIN = 5
+
 # Amount of minutes idle after which we'll (auto) shutdown
 IDLE_SHUTDOWN = 30
 
@@ -289,7 +293,6 @@ class Manager(object):
         if nodedata:
             self.__wakeUp = (__curTime + datetime.timedelta(minutes=int(nodedata[0]) - self.__prerun)).replace(second=0)
             self.__wakeUpUTRec = int(time.mktime(self.__wakeUp.timetuple()))
-            self.__flags |= isRES
 
         __wakeEPG = None
         if self.__epg_interval > 0:
@@ -301,22 +304,20 @@ class Manager(object):
             if __curTime > __wakeEPG:
                 __wakeEPG = __wakeEPG + datetime.timedelta(days=self.__epg_interval)
             self.__wakeUpUTEpg = int(time.mktime(__wakeEPG.timetuple()))
-            self.__flags |= isRES
 
         # Calculate wakeup times
-        if self.__flags & isRES:
-            if self.__wakeUpUTRec <= self.__wakeUpUTEpg:
-                if self.__wakeUpUTRec > 0:
-                    self.__wakeUpUT = self.__wakeUpUTRec
-                elif self.__wakeUpUTEpg > 0:
-                    self.__wakeUpUT = self.__wakeUpUTEpg
-                    self.__wakeUp = __wakeEPG
-            else:
-                if self.__wakeUpUTEpg > 0:
-                    self.__wakeUpUT = self.__wakeUpUTEpg
-                    self.__wakeUp = __wakeEPG
-                elif self.__wakeUpUTRec > 0:
-                    self.__wakeUpUT = self.__wakeUpUTRec
+        if self.__wakeUpUTRec <= self.__wakeUpUTEpg:
+            if self.__wakeUpUTRec > 0:
+                self.__wakeUpUT = self.__wakeUpUTRec
+            elif self.__wakeUpUTEpg > 0:
+                self.__wakeUpUT = self.__wakeUpUTEpg
+                self.__wakeUp = __wakeEPG
+        else:
+            if self.__wakeUpUTEpg > 0:
+                self.__wakeUpUT = self.__wakeUpUTEpg
+                self.__wakeUp = __wakeEPG
+            elif self.__wakeUpUTRec > 0:
+                self.__wakeUpUT = self.__wakeUpUTRec
 
     def updateSysState(self, Net=True, verbose=False):
         # Update status xml from tvh
@@ -335,16 +336,16 @@ class Manager(object):
         # Check for (future) recordings. If there is a 'next' tag a future recording comes up
         nodedata = self.readStatusXML('next')
         if nodedata:
-            if int(nodedata[0]) <= (self.__prerun + self.__postrun):
+            if int(nodedata[0]) <= (self.__prerun + self.__postrun + OFF_ON_MARGIN):
                 # immediate
                 self.__flags |= isREC
-            else:
-                # later
-                self.__flags |= isRES
+
+        __curTime = datetime.datetime.now()
+        if self.__wakeUp and self.__wakeUp <= __curTime:
+                self.__flags |= isRES # Resumed automatically
 
         # Check if actualizing EPG-Data
         if self.__epg_interval > 0:
-            __curTime = datetime.datetime.now()
             __dayDelta = self.__epg_interval
             if int(__curTime.strftime('%j')) % __dayDelta == 0:
                 __dayDelta = 0
@@ -542,7 +543,7 @@ class Manager(object):
                 self.updateSysState(verbose=True)
 
                 # Check if we resumed automatically
-                if self.__flags & (isREC | isEPG | isPRG | isNET):
+                if self.__flags:
                     self.enableAutoMode()
                     tools.writeLog('Wakeup in automode', level=xbmc.LOGINFO)
 
