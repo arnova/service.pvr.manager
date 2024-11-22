@@ -70,7 +70,7 @@ class UserIdleThread(threading.Thread):
 
     def run(self):
         _idle_last = 0
-        while not self._stop_event.isSet():
+        while not self._stop_event.is_set():
             self._stop_event.wait(0.01) # sleep 10 ms
 
             # User activity detected (=idle timer reset)?
