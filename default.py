@@ -38,6 +38,12 @@ IDLE_COUNTDOWN_TIME = 10
 SHUTDOWN_CMD = xbmcvfs.translatePath(os.path.join(__path__, 'resources', 'lib', 'shutdown.sh'))
 EXTGRABBER = xbmcvfs.translatePath(os.path.join(__path__, 'resources', 'lib', 'epggrab_ext.sh'))
 
+# The settings below are fixed. Create kodi-user in tvheadend accordingly!
+SERVER_ADDR = "127.0.0.1"
+SERVER_PORT = "9981"
+SERVER_USER = "kodi"
+SERVER_PASS = "koditv"
+
 # set permissions for these files, this is required after installation or update
 _sts = os.stat(SHUTDOWN_CMD)
 if not (_sts.st_mode & stat.S_IEXEC):
@@ -122,12 +128,13 @@ class Manager(object):
         self.__maxattempts = tools.getAddonSetting('conn_attempts', sType=tools.NUM)
 
         self.hasPVR = True
+
         try:
             __addonTVH__ = xbmcaddon.Addon('pvr.hts')
-            self.__server = 'http://' + __addonTVH__.getSetting('host')
-            self.__port = __addonTVH__.getSetting('http_port')
-            self.__user = __addonTVH__.getSetting('user')
-            self.__pass = __addonTVH__.getSetting('pass')
+            self.__server = SERVER_ADDR #'http://' + __addonTVH__.getSetting('host')
+            self.__port = SERVER_PORT # __addonTVH__.getSetting('http_port')
+            self.__user = SERVER_USER #__addonTVH__.getSetting('user')
+            self.__pass = SERVER_PASS #__addonTVH__.getSetting('pass')
         except RuntimeError:
             tools.writeLog('Addon \'pvr.hts\' not installed or inactive', level=xbmc.LOGERROR)
             self.hasPVR = False
@@ -258,7 +265,7 @@ class Manager(object):
                     if conn.status_code == 401:
                         tools.writeLog('Unauthorized access (401)')
                         break
-                except requests.ConnectionError:
+                except: # requests.ConnectionError:
                     _attempts -= 1
                     tools.writeLog('%s unreachable, remaining attempts: %s' % (self.__server, _attempts))
                     xbmc.sleep(5000)
@@ -450,7 +457,7 @@ class Manager(object):
         return False # No event
 
     def setWakeup(self, shutdown=True):
-        if not self.__wakeUpUT:
+        if self.__wakeUp is None or not self.__wakeUpUT:
             tools.writeLog('No recordings or EPG update to schedule')
         elif self.__wakeUpUT == self.__wakeUpUTRec:
             tools.writeLog('Recording wake-up time: %s' % (self.__wakeUp.strftime('%d.%m.%y %H:%M')))
@@ -463,9 +470,9 @@ class Manager(object):
         if shutdown:
             # Show notifications
             if self.__nextsched:
-                if self.__wakeUpUT == self.__wakeUpUTRec:
+                if not self.__wakeUp is None and self.__wakeUpUT == self.__wakeUpUTRec:
                     tools.Notify().notify(__LS__(30017), __LS__(30018) % (self.__wakeUp.strftime('%d.%m.%Y %H:%M')))
-                elif self.__wakeUpUT == self.__wakeUpUTEpg:
+                elif not self.__wakeUp is None and self.__wakeUpUT == self.__wakeUpUTEpg:
                     tools.Notify().notify(__LS__(30017), __LS__(30019) % (self.__wakeUp.strftime('%d.%m.%Y %H:%M')))
                 else:
                     tools.Notify().notify(__LS__(30010), __LS__(30014))
