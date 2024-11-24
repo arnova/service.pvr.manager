@@ -600,7 +600,8 @@ class Manager(object):
                 wait_count += 1
 
                 if mon.waitForAbort(1):
-                    tools.writeLog('Service with id %s aborted' % (self.rndProcNum), level=xbmc.LOGINFO)
+                    tools.writeLog('Service with id %s aborting' % (self.rndProcNum), level=xbmc.LOGINFO)
+                    uit.stop() # Stop user idle thread
                     return
 
                 # User activity detected?
@@ -698,7 +699,6 @@ class Manager(object):
                 power_off = False       # Reset power off flag
 
         ### END MAIN LOOP ###
-        uit.stop() # Stop user idle thread
 
         ##################################### END OF MAIN SERVICE #####################################
 
