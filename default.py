@@ -434,7 +434,8 @@ class Manager(object):
             tools.writeLog('Instruct the system to shut down using %s' % ('Application' if self.__shutdown == 0 else 'OS'), xbmc.LOGINFO)
             os.system('%s%s %s %s' % (self.__sudo, SHUTDOWN_CMD, self.__wakeUpUT, self.__shutdown))
             if self.__shutdown == 0:
-                xbmc.shutdown()
+                xbmc.executebuiltin('ShutDown')
+#                xbmc.executebuiltin('Suspend')
             xbmc.sleep(1000)
             return True
         else:
