@@ -113,22 +113,8 @@ class Manager(object):
         self.__auto_mode_counter = 0
         self.__dialog_pb = None
         self.rndProcNum = random.randint(1, 1024)
-        self.hasPVR = None
-
-        ### read addon settings
-
-        self.__prerun = tools.getAddonSetting('margin_start', sType=tools.NUM)
-        self.__postrun = tools.getAddonSetting('margin_stop', sType=tools.NUM)
-        self.__shutdown = tools.getAddonSetting('shutdown_method', sType=tools.NUM)
-        self.__sudo = 'sudo ' if tools.getAddonSetting('sudo', sType=tools.BOOL) else ''
-        self.__counter = tools.getAddonSetting('notification_counter', sType=tools.NUM)
-        self.__nextsched = tools.getAddonSetting('next_schedule', sType=tools.BOOL)
-
-        # TVHeadend server
-        self.__maxattempts = tools.getAddonSetting('conn_attempts', sType=tools.NUM)  # FIXME: No longer used
 
         self.hasPVR = True
-
         try:
             __addonTVH__ = xbmcaddon.Addon('pvr.hts')
             self.__server = SERVER_ADDR #'http://' + __addonTVH__.getSetting('host')
@@ -138,35 +124,6 @@ class Manager(object):
         except RuntimeError:
             tools.writeLog('Addon \'pvr.hts\' not installed or inactive', level=xbmc.LOGERROR)
             self.hasPVR = False
-
-        # check if network activity has to observed
-        self.__network = tools.getAddonSetting('network', sType=tools.BOOL)
-        self.__monitored_ports = self.createwellformedlist('monitored_ports')
-
-        # check if processes has to observed
-        self.__pp_enabled = tools.getAddonSetting('postprocessor_enable', sType=tools.BOOL)
-        self.__pp_list = self.createwellformedlist('processor_list')
-
-        # mail settings
-        self.__notification = tools.getAddonSetting('smtp_sendmail', sType=tools.BOOL)
-        self.__smtpserver = tools.getAddonSetting('smtp_server')
-        self.__smtpuser = tools.getAddonSetting('smtp_user')
-        self.__smtppass = self.crypt('smtp_passwd', 'smtp_key', 'smtp_token')
-        self.__smtpenc = tools.getAddonSetting('smtp_encryption')
-        self.__smtpfrom = tools.getAddonSetting('smtp_from')
-        self.__smtpto = tools.getAddonSetting('smtp_to')
-        self.__charset = tools.getAddonSetting('charset')
-
-        # EPG-Wakeup settings
-        self.__epg_interval = tools.getAddonSetting('epgtimer_interval', sType=tools.NUM)
-        self.__epg_time = tools.getAddonSetting('epgtimer_time', sType=tools.NUM)
-        self.__epg_duration = tools.getAddonSetting('epgtimer_duration', sType=tools.NUM)
-        self.__epg_grab_ext = tools.getAddonSetting('epg_grab_ext', sType=tools.BOOL)
-        self.__epg_socket = xbmcvfs.translatePath(tools.getAddonSetting('epg_socket_path'))
-        self.__epg_store = tools.getAddonSetting('store_epg', sType=tools.BOOL)
-        self.__epg_path = xbmcvfs.translatePath(os.path.join(tools.getAddonSetting('epg_path'), 'epg.xml'))
-
-        tools.writeLog('Settings loaded')
 
     @classmethod
     def createwellformedlist(cls, setting):
@@ -498,6 +455,46 @@ class Manager(object):
                 if mode is None:
                     self.deliverMail(__LS__(30047) % (release.hostname, item))
 
+    def loadSettings(self):
+        """ read addon settings """
+        self.__prerun = tools.getAddonSetting('margin_start', sType=tools.NUM)
+        self.__postrun = tools.getAddonSetting('margin_stop', sType=tools.NUM)
+        self.__shutdown = tools.getAddonSetting('shutdown_method', sType=tools.NUM)
+        self.__sudo = 'sudo ' if tools.getAddonSetting('sudo', sType=tools.BOOL) else ''
+        self.__counter = tools.getAddonSetting('notification_counter', sType=tools.NUM)
+        self.__nextsched = tools.getAddonSetting('next_schedule', sType=tools.BOOL)
+
+        # TVHeadend server
+        self.__maxattempts = tools.getAddonSetting('conn_attempts', sType=tools.NUM)  # FIXME: No longer used
+
+        # check if network activity has to observed
+        self.__network = tools.getAddonSetting('network', sType=tools.BOOL)
+        self.__monitored_ports = self.createwellformedlist('monitored_ports')
+
+        # check if processes has to observed
+        self.__pp_enabled = tools.getAddonSetting('postprocessor_enable', sType=tools.BOOL)
+        self.__pp_list = self.createwellformedlist('processor_list')
+
+        # mail settings
+        self.__notification = tools.getAddonSetting('smtp_sendmail', sType=tools.BOOL)
+        self.__smtpserver = tools.getAddonSetting('smtp_server')
+        self.__smtpuser = tools.getAddonSetting('smtp_user')
+        self.__smtppass = self.crypt('smtp_passwd', 'smtp_key', 'smtp_token')
+        self.__smtpenc = tools.getAddonSetting('smtp_encryption')
+        self.__smtpfrom = tools.getAddonSetting('smtp_from')
+        self.__smtpto = tools.getAddonSetting('smtp_to')
+        self.__charset = tools.getAddonSetting('charset')
+
+        # EPG-Wakeup settings
+        self.__epg_interval = tools.getAddonSetting('epgtimer_interval', sType=tools.NUM)
+        self.__epg_time = tools.getAddonSetting('epgtimer_time', sType=tools.NUM)
+        self.__epg_duration = tools.getAddonSetting('epgtimer_duration', sType=tools.NUM)
+        self.__epg_grab_ext = tools.getAddonSetting('epg_grab_ext', sType=tools.BOOL)
+        self.__epg_socket = xbmcvfs.translatePath(tools.getAddonSetting('epg_socket_path'))
+        self.__epg_store = tools.getAddonSetting('store_epg', sType=tools.BOOL)
+        self.__epg_path = xbmcvfs.translatePath(os.path.join(tools.getAddonSetting('epg_path'), 'epg.xml'))
+
+
     ####################################### START MAIN SERVICE #####################################
 
     def start(self, mode=None):
@@ -538,6 +535,9 @@ class Manager(object):
         uit.start()
 
         while (1):
+            # Need to keep updating setting as they may be changed in the GUI while running
+            self.loadSettings()
+
             if resumed or first_start:
                 # Get updated system state (and store new status)
                 self.updateSysState(verbose=True)
