@@ -125,7 +125,7 @@ class Manager(object):
         self.__nextsched = tools.getAddonSetting('next_schedule', sType=tools.BOOL)
 
         # TVHeadend server
-        self.__maxattempts = tools.getAddonSetting('conn_attempts', sType=tools.NUM)
+        self.__maxattempts = tools.getAddonSetting('conn_attempts', sType=tools.NUM)  # FIXME: No longer used
 
         self.hasPVR = True
 
@@ -236,42 +236,35 @@ class Manager(object):
     # Connect to TVHeadend and establish connection (log in))
 
     def __getPvrStatusXML(self):
-        _attempts = self.__maxattempts
-
         if not self.hasPVR:
             tools.writeLog('No HTS PVR client installed or inactive', level=xbmc.LOGERROR)
             tools.Notify().notify(__LS__(30030), __LS__(30032), icon=xbmcgui.NOTIFICATION_ERROR)
             self.__xml = None
             return False
         else:
-            while self.hasPVR and _attempts > 0:
-                # try DigestAuth as first, as this is the default auth on TVH > 3.9
-                try:
-                    conn = requests.get('%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPDigestAuth(self.__user, self.__pass))
+            # try DigestAuth as first, as this is the default auth on TVH > 3.9
+            try:
+                conn = requests.get('%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPDigestAuth(self.__user, self.__pass))
+                conn.close()
+                if conn.status_code == 200:
+#                        tools.writeLog('Getting status.xml (Digest Auth)')
+                    self.__xml = conn.content
+                    return True
+                else:
+                    # try BasicAuth as older method
+                    conn = requests.get('%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPBasicAuth(self.__user, self.__pass))
                     conn.close()
                     if conn.status_code == 200:
-#                        tools.writeLog('Getting status.xml (Digest Auth)')
+#                            tools.writeLog('Getting status.xml (Basic Auth)')
                         self.__xml = conn.content
                         return True
-                    else:
-                        # try BasicAuth as older method
-                        conn = requests.get('%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPBasicAuth(self.__user, self.__pass))
-                        conn.close()
-                        if conn.status_code == 200:
-#                            tools.writeLog('Getting status.xml (Basic Auth)')
-                            self.__xml = conn.content
-                            return True
 
-                    if conn.status_code == 401:
-                        tools.writeLog('Unauthorized access (401)')
-                        break
-                except: # requests.ConnectionError:
-                    _attempts -= 1
-                    tools.writeLog('%s unreachable, remaining attempts: %s' % (self.__server, _attempts))
-                    xbmc.sleep(5000)
-                    continue
+                if conn.status_code == 401:
+                    tools.writeLog('Unauthorized access (401)')
+            except: # requests.ConnectionError:
+                tools.writeLog('%s unreachable, retry next round' % self.__server)
 
-        tools.Notify().notify(__LS__(30030), __LS__(30031), icon=xbmcgui.NOTIFICATION_ERROR)
+#        tools.Notify().notify(__LS__(30030), __LS__(30031), icon=xbmcgui.NOTIFICATION_ERROR)  # FIXME
         self.__xml = None
         return False
 
