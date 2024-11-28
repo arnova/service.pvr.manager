@@ -19,6 +19,9 @@ __LS__ = __addon__.getLocalizedString
 # File for power off event
 POWER_OFF_FILE = xbmcvfs.translatePath('special://temp/.pbc_poweroff')
 
+# File to store the wakeup time. This time is picked up by the systemd service on suspend/hibernate/shutdown
+WAKEUP_TIME_FILE = xbmcvfs.translatePath('special://temp/.wakeup_time')
+
 # Script to be executed on resume (from suspend/hibernate)
 RESUME_SCRIPT = xbmcvfs.translatePath('special://userdata/resume.py')
 
@@ -406,6 +409,24 @@ class Manager(object):
 
         return False # No event
 
+    @staticmethod
+    def removeRTCWakeupFile():
+        if os.path.isfile(WAKEUP_TIME_FILE):
+            try:
+                os.remove(WAKEUP_TIME_FILE)
+            except OSError:
+                tools.writeLog('Unable to rtc wakeup file %s' % WAKEUP_TIME_FILE, level=xbmc.LOGERROR)
+
+    def setRTCWakeupFile(self):
+        # Create wakeup file
+        try:
+            with open(WAKEUP_TIME_FILE, 'w', encoding='ascii') as wakeup_file_handle:
+                wakeup_file_handle.write(f"{self.__wakeUpUT}\n")
+            return True
+        except IOError:
+            tools.writeLog('Unable to create rtc wakeup file %s' % WAKEUP_TIME_FILE, level=xbmc.LOGERROR)
+            return False
+
     def setWakeup(self, shutdown=True):
         if self.__wakeUp is None or not self.__wakeUpUT:
             tools.writeLog('No recordings or EPG update to schedule')
@@ -416,6 +437,7 @@ class Manager(object):
 
         tools.writeLog('Wake-up Unix time: %s' % (self.__wakeUpUT), xbmc.LOGINFO)
 #        tools.writeLog('Flags before shutdown are: {0:05b}'.format(self.__flags))
+        self.setRTCWakeupFile()
 
         if shutdown:
             # Show notifications
@@ -431,17 +453,12 @@ class Manager(object):
                 tools.writeLog('Stopping Player')
                 xbmc.Player().stop()
 
-            tools.writeLog('Instruct the system to shut down using %s' % ('Application' if self.__shutdown == 0 else 'OS'), xbmc.LOGINFO)
-            os.system('%s%s %s %s' % (self.__sudo, SHUTDOWN_CMD, self.__wakeUpUT, self.__shutdown))
-            if self.__shutdown == 0:
-                xbmc.executebuiltin('ShutDown')
-#                xbmc.executebuiltin('Suspend')
+            tools.writeLog('Instruct the system to shut down', xbmc.LOGINFO)
+            xbmc.executebuiltin('ShutDown')  # Use shutdown method as configured in the power settings (suspend, hibernate, etc.)
+#            xbmc.executebuiltin('Suspend')
             xbmc.sleep(1000)
-            return True
-        else:
-            os.system('%s%s %s %s' % (self.__sudo, SHUTDOWN_CMD, self.__wakeUpUT, 0))
+            self.removeRTCWakeupFile()
 
-        return False
 
     def checkOutdatedRecordings(self, mode):
         nodedata = self.readStatusXML('title')
@@ -460,13 +477,13 @@ class Manager(object):
         """ read addon settings """
         self.__prerun = tools.getAddonSetting('margin_start', sType=tools.NUM)
         self.__postrun = tools.getAddonSetting('margin_stop', sType=tools.NUM)
-        self.__shutdown = tools.getAddonSetting('shutdown_method', sType=tools.NUM)
-        self.__sudo = 'sudo ' if tools.getAddonSetting('sudo', sType=tools.BOOL) else ''
-        self.__counter = tools.getAddonSetting('notification_counter', sType=tools.NUM)
+#        self.__shutdown = tools.getAddonSetting('shutdown_method', sType=tools.NUM)   # FIXME: No longer used
+#        self.__sudo = 'sudo ' if tools.getAddonSetting('sudo', sType=tools.BOOL) else ''   # FIXME: No longer used
+#        self.__counter = tools.getAddonSetting('notification_counter', sType=tools.NUM)   # FIXME: No longer used
         self.__nextsched = tools.getAddonSetting('next_schedule', sType=tools.BOOL)
 
         # TVHeadend server
-        self.__maxattempts = tools.getAddonSetting('conn_attempts', sType=tools.NUM)  # FIXME: No longer used
+#        self.__maxattempts = tools.getAddonSetting('conn_attempts', sType=tools.NUM)  # FIXME: No longer used
 
         # check if network activity has to observed
         self.__network = tools.getAddonSetting('network', sType=tools.BOOL)
@@ -683,13 +700,12 @@ class Manager(object):
                 # Set RTC wakeup + suspend system:
                 # NOTE: setWakeup() will block when the system suspends
                 #       and continue as soon as it resumes again
-                if self.setWakeup():
-                    resumed = True                    # Notify next iteration we have resumed from suspend
-                    uit.IsUserActive()                # Reset user active event
-                    resume_last = int(time.time())    # Save resume time for later use
-                    self.getPowerOffEvent()           # Reset power off event
-                    tools.writeLog('Resume point passed', level=xbmc.LOGINFO)
-
+                self.setWakeup()
+                resumed = True                    # Notify next iteration we have resumed from suspend
+                uit.IsUserActive()                # Reset user active event
+                resume_last = int(time.time())    # Save resume time for later use
+                self.getPowerOffEvent()           # Reset power off event
+                tools.writeLog('Resume point passed', level=xbmc.LOGINFO)
                 power_off = False       # Reset power off flag
 
         ### END MAIN LOOP ###
