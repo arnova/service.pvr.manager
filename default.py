@@ -19,6 +19,9 @@ __LS__ = __addon__.getLocalizedString
 # File for power off event
 POWER_OFF_FILE = xbmcvfs.translatePath('special://temp/.pbc_poweroff')
 
+# File to store the RTC wakeup time in (and picked up by rtcwakeup.sh)
+RTC_WAKEUP_FILE = xbmcvfs.translatePath('special://temp/.rtc_wakeup')
+
 # Script to be executed on resume (from suspend/hibernate)
 RESUME_SCRIPT = xbmcvfs.translatePath('special://userdata/resume.py')
 
@@ -35,7 +38,7 @@ IDLE_SHUTDOWN = 30
 # Countdown time in seconds when idle timer expires and automatically shutting down
 IDLE_COUNTDOWN_TIME = 10
 
-SHUTDOWN_CMD = xbmcvfs.translatePath(os.path.join(__path__, 'resources', 'lib', 'shutdown.sh'))
+RTC_WAKEUP_CMD = xbmcvfs.translatePath(os.path.join(__path__, 'resources', 'lib', 'rtc_wakeup.sh'))
 EXTGRABBER = xbmcvfs.translatePath(os.path.join(__path__, 'resources', 'lib', 'epggrab_ext.sh'))
 
 # The settings below are fixed. Create kodi-user in tvheadend accordingly!
@@ -45,19 +48,15 @@ SERVER_USER = "kodi"
 SERVER_PASS = "koditv"
 
 # set permissions for these files, this is required after installation or update
-_sts = os.stat(SHUTDOWN_CMD)
+_sts = os.stat(RTC_WAKEUP_CMD)
 if not (_sts.st_mode & stat.S_IEXEC):
-    os.chmod(SHUTDOWN_CMD, _sts.st_mode | stat.S_IEXEC)
+    os.chmod(RTC_WAKEUP_CMD, _sts.st_mode | stat.S_IEXEC)
 
 _stg = os.stat(EXTGRABBER)
 if not (_stg.st_mode & stat.S_IEXEC):
     os.chmod(EXTGRABBER, _stg.st_mode | stat.S_IEXEC)
 
 tools.writeLog('OS ID is %s' % (release.osid))
-
-if ('libreelec' or 'openelec') in release.osid and tools.getAddonSetting('sudo', sType=tools.BOOL):
-    __addon__.setSetting('sudo', 'false')
-    tools.writeLog('OS is LibreELEC or OpenELEC, reset wrong setting \'sudo\' in options')
 
 # binary Flags
 
@@ -104,7 +103,7 @@ class Manager(object):
         self.__xml = None
         self.__recTitles = []
         self.__wakeUp = None
-        self.__wakeUpUT = None
+        self.__wakeUpUT = 0
         self.__wakeUpUTRec = None
         self.__wakeUpUTEpg = None
         self.__monitored_ports = ''
@@ -406,8 +405,8 @@ class Manager(object):
 
         return False # No event
 
-    def setWakeup(self, shutdown=True):
-        if self.__wakeUp is None or not self.__wakeUpUT:
+    def setWakeup(self):
+        if self.__wakeUp is None or self.__wakeUpUT == 0:
             tools.writeLog('No recordings or EPG update to schedule')
         elif self.__wakeUpUT == self.__wakeUpUTRec:
             tools.writeLog('Recording wake-up time: %s' % (self.__wakeUp.strftime('%d.%m.%y %H:%M')))
@@ -415,33 +414,37 @@ class Manager(object):
             tools.writeLog('EPG update wake-up time: %s' % (self.__wakeUp.strftime('%d.%m.%y %H:%M')))
 
         tools.writeLog('Wake-up Unix time: %s' % (self.__wakeUpUT), xbmc.LOGINFO)
+
+        # Create rtc wakeup file
+        try:
+            with open(RTC_WAKEUP_FILE, 'w') as file_handle:
+                file_handle.write(f'{self.__wakeUpUT}\n')
+            return True
+        except IOError:
+            tools.writeLog('Unable to create rtc wakeup file %s' % RTC_WAKEUP_FILE, level=xbmc.LOGERROR)
+            return False
+
+
+    def ShutDown(self):
+        # Show notifications
+        if self.__nextsched:
+            if not self.__wakeUp is None and self.__wakeUpUT == self.__wakeUpUTRec:
+                tools.Notify().notify(__LS__(30017), __LS__(30018) % (self.__wakeUp.strftime('%d.%m.%Y %H:%M')))
+            elif not self.__wakeUp is None and self.__wakeUpUT == self.__wakeUpUTEpg:
+                tools.Notify().notify(__LS__(30017), __LS__(30019) % (self.__wakeUp.strftime('%d.%m.%Y %H:%M')))
+            else:
+                tools.Notify().notify(__LS__(30010), __LS__(30014))
+
+        if xbmc.getCondVisibility('Player.Playing') or xbmc.getCondVisibility('Player.Paused'):
+            tools.writeLog('Stopping Player')
+            xbmc.Player().stop()
+
 #        tools.writeLog('Flags before shutdown are: {0:05b}'.format(self.__flags))
 
-        if shutdown:
-            # Show notifications
-            if self.__nextsched:
-                if not self.__wakeUp is None and self.__wakeUpUT == self.__wakeUpUTRec:
-                    tools.Notify().notify(__LS__(30017), __LS__(30018) % (self.__wakeUp.strftime('%d.%m.%Y %H:%M')))
-                elif not self.__wakeUp is None and self.__wakeUpUT == self.__wakeUpUTEpg:
-                    tools.Notify().notify(__LS__(30017), __LS__(30019) % (self.__wakeUp.strftime('%d.%m.%Y %H:%M')))
-                else:
-                    tools.Notify().notify(__LS__(30010), __LS__(30014))
-
-            if xbmc.getCondVisibility('Player.Playing') or xbmc.getCondVisibility('Player.Paused'):
-                tools.writeLog('Stopping Player')
-                xbmc.Player().stop()
-
-            tools.writeLog('Instruct the system to shut down using %s' % ('Application' if self.__shutdown == 0 else 'OS'), xbmc.LOGINFO)
-            os.system('%s%s %s %s' % (self.__sudo, SHUTDOWN_CMD, self.__wakeUpUT, self.__shutdown))
-            if self.__shutdown == 0:
-                xbmc.executebuiltin('ShutDown')
-#                xbmc.executebuiltin('Suspend')
-            xbmc.sleep(1000)
-            return True
-        else:
-            os.system('%s%s %s %s' % (self.__sudo, SHUTDOWN_CMD, self.__wakeUpUT, 0))
-
-        return False
+        tools.writeLog('Instruct the system to shut down', xbmc.LOGINFO)
+        xbmc.executebuiltin('ShutDown')
+#        xbmc.executebuiltin('Suspend')
+        xbmc.sleep(1000)
 
     def checkOutdatedRecordings(self, mode):
         nodedata = self.readStatusXML('title')
@@ -460,9 +463,6 @@ class Manager(object):
         """ read addon settings """
         self.__prerun = tools.getAddonSetting('margin_start', sType=tools.NUM)
         self.__postrun = tools.getAddonSetting('margin_stop', sType=tools.NUM)
-        self.__shutdown = tools.getAddonSetting('shutdown_method', sType=tools.NUM)
-        self.__sudo = 'sudo ' if tools.getAddonSetting('sudo', sType=tools.BOOL) else ''
-        self.__counter = tools.getAddonSetting('notification_counter', sType=tools.NUM)
         self.__nextsched = tools.getAddonSetting('next_schedule', sType=tools.BOOL)
 
         # TVHeadend server
@@ -501,7 +501,7 @@ class Manager(object):
     def start(self, mode=None):
         tools.writeLog('Starting with id:%s@mode:%s' % (self.rndProcNum, mode))
         # reset RTC
-        #os.system('%s%s %s %s' % (self.__sudo, SHUTDOWN_CMD, 0, 0))
+        #self.setWakeUp(0)
         #tools.writeLog('Reset RTC')
 
         if mode == 'CHECKMAILSETTINGS':
@@ -525,7 +525,7 @@ class Manager(object):
         tools.writeLog('Starting service', level=xbmc.LOGINFO)
 
         idle_timer = 0
-        wake_up_last = 0
+        wake_up_last = -1
         resume_last = 0
         resumed = False
         first_start = True
@@ -575,14 +575,14 @@ class Manager(object):
                 #############
                 first_start = False
                 resumed = False
-                wake_up_last = 0    # Force update of wakeup time, just in case
+                wake_up_last = -1    # Force update of wakeup time, just in case
 
             # Update wake time, in case a new value is set
             # NOTE: We keep doing this (instead of only on powerdown),
             #       just in case Kodi crashes/freezes
-            if not self.__wakeUpUT == wake_up_last:
+            if self.__wakeUpUT != wake_up_last:
                 wake_up_last = self.__wakeUpUT
-                self.setWakeup(shutdown=False)
+                self.setWakeup()
 
             # Check outdated recordings
             self.checkOutdatedRecordings(mode)
@@ -680,10 +680,11 @@ class Manager(object):
                 # Always disable automode (+close dialog)
                 self.disableAutoMode()
 
-                # Set RTC wakeup + suspend system:
-                # NOTE: setWakeup() will block when the system suspends
-                #       and continue as soon as it resumes again
+                # Set RTC wakeup & shutdown system and continue as soon as it resumes again
                 if self.setWakeup():
+                    # NOTE: setWakeup() will block when the system suspends
+                    self.ShutDown()
+                    # From here is where we continue
                     resumed = True                    # Notify next iteration we have resumed from suspend
                     uit.IsUserActive()                # Reset user active event
                     resume_last = int(time.time())    # Save resume time for later use
