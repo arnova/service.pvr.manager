@@ -200,7 +200,7 @@ class Manager(object):
         else:
             # try DigestAuth as first, as this is the default auth on TVH > 3.9
             try:
-                conn = requests.get('%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPDigestAuth(self.__user, self.__pass))
+                conn = requests.get('http://%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPDigestAuth(self.__user, self.__pass))
                 conn.close()
                 if conn.status_code == 200:
 #                        tools.writeLog('Getting status.xml (Digest Auth)')
@@ -208,7 +208,7 @@ class Manager(object):
                     return True
                 else:
                     # try BasicAuth as older method
-                    conn = requests.get('%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPBasicAuth(self.__user, self.__pass))
+                    conn = requests.get('http://%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPBasicAuth(self.__user, self.__pass))
                     conn.close()
                     if conn.status_code == 200:
 #                            tools.writeLog('Getting status.xml (Basic Auth)')
@@ -217,7 +217,7 @@ class Manager(object):
 
                 if conn.status_code == 401:
                     tools.writeLog('Unauthorized access (401)')
-            except: # requests.ConnectionError:
+            except requests.ConnectionError:
                 tools.writeLog('%s unreachable, retry next round' % self.__server)
 
 #        tools.Notify().notify(__LS__(30030), __LS__(30031), icon=xbmcgui.NOTIFICATION_ERROR)  # FIXME
