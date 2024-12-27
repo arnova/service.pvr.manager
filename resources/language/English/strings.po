@@ -27,15 +27,19 @@ msgstr ""
 
 
 msgctxt "#30000"
-msgid "Booting Time until System is ready"
+msgid "Booting time until system is ready"
 msgstr ""
 
 msgctxt "#30001"
-msgid "Time for Shutdown"
+msgid "Shutdown time until powered off"
+msgstr ""
+
+msgctxt "#30002"
+msgid "Idle time for automatic shutdown"
 msgstr ""
 
 msgctxt "#30003"
-msgid "Display Time for Shutdown-Confirmation"
+msgid "Display time for shutdown-notification"
 msgstr ""
 
 msgctxt "#30004"
@@ -382,4 +386,80 @@ msgstr ""
 
 msgctxt "#30107"
 msgid "7 Days"
+msgstr ""
+
+msgctxt "#30108"
+msgid "1 Min"
+msgstr ""
+
+msgctxt "#30109"
+msgid "2 Min"
+msgstr ""
+
+msgctxt "#30110"
+msgid "3 Min"
+msgstr ""
+
+msgctxt "#30111"
+msgid "4 Min"
+msgstr ""
+
+msgctxt "#30112"
+msgid "5 Min"
+msgstr ""
+
+msgctxt "#30113"
+msgid "10 Min"
+msgstr ""
+
+msgctxt "#30114"
+msgid "15 Min"
+msgstr ""
+
+msgctxt "#30115"
+msgid "20 Min"
+msgstr ""
+
+msgctxt "#30116"
+msgid "25 Min"
+msgstr ""
+
+msgctxt "#30117"
+msgid "30 Min"
+msgstr ""
+
+msgctxt "#30118"
+msgid "35 Min"
+msgstr ""
+
+msgctxt "#30119"
+msgid "40 Min"
+msgstr ""
+
+msgctxt "#30120"
+msgid "45 Min"
+msgstr ""
+
+msgctxt "#30121"
+msgid "60 Min"
+msgstr ""
+
+msgctxt "#30130"
+msgid "10 Sec"
+msgstr ""
+
+msgctxt "#30131"
+msgid "15 Sec"
+msgstr ""
+
+msgctxt "#30132"
+msgid "30 Sec"
+msgstr ""
+
+msgctxt "#30133"
+msgid "45 Sec"
+msgstr ""
+
+msgctxt "#30134"
+msgid "60 Sec"
 msgstr ""

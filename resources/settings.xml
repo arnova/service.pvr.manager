@@ -1,44 +1,375 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<settings>
-	<!-- GENERAL -->
-	<category label="30050">
-		<setting id="conn_attempts" type="labelenum" label="30004" values="1|2|3|4|5|6|7|8|9" default="5" />
-		<setting id="separator" type="sep" />
-		<setting id="margin_start" type="labelenum" label="30000" values="1 min|2 min|3 min|4 min|5 min" default="1 min" />
-		<setting id="margin_stop" type="labelenum" label="30001" values="1 min|2 min|3 min|4 min|5 min" default="1 min" />
-		<setting id="notification_counter" type="labelenum" label="30003" values="15 sec|30 sec|45 sec|60 sec|75 sec|90 sec|105 sec|120 sec|135 sec|150 sec|165 sec|180 sec" default="60 sec" />
-		<setting id="separator" type="sep" />
-        <setting id="next_schedule" type="bool" label="30007" default="false" />
-		<setting id="separator" type="sep" />
-		<setting id="network" type="bool" label="30034" default="false" />
-		<setting id="monitored_ports" type="text" label="30037" enable="eq(-1,true)" default="" />
-		<setting id="separator" type="sep" />
-		<setting id="postprocessor_enable" type="bool" label="30035" default="false" />
-		<setting id="processor_list" type="text" label="30036" enable="eq(-1,true)" default="" />
-	</category>
-	<!-- MAIL SETTINGS -->
-	<category label="30052">
-		<setting id="smtp_sendmail" type="bool" label="30040" default="false" />
-		<setting id="separator" type="sep" />
-		<setting id="smtp_server" type="text" label="30041" enable="eq(-2,true)" default="" />
-		<setting id="smtp_user" type="text" label="30042" enable="eq(-3,true)" default="" />
-		<setting id="smtp_passwd" type="text" option="hidden" label="30043" enable="eq(-4,true)" default="" />
-		<setting id="smtp_encryption" type="labelenum" label="30049" enable="eq(-5,true)" values="STARTTLS|SSL/TLS|None" default="SSL/TLS" />
-		<setting id="separator" type="sep" />
-        <setting id="smtp_from" type="text" label="30044" enable="eq(-7,true)" default="" />
-		<setting id="smtp_to" type="text" label="30045" enable="eq(-8,true)" default="" />
-		<setting id="charset" type="text" label="30048" enable="eq(-9,true)" default="ISO-8859-1" />
-		<setting id="checksettings" type="action" label="30054" option="close" action="RunScript(service.tvh.manager,checkmailsettings)" enable="eq(-10,true)" default="" />
-	</category>
-	<!-- EPG-DATA SETTINGS -->
-	<category label="30053">
-		<setting id="epgtimer_interval" type="enum" label="30061" lvalues="30100|30101|30102|30103|30104|30105|30106|30107" default="2" />
-		<setting id="epgtimer_time" type="enum" label="30062" lvalues="30070|30071|30072|30073|30074|30075|30076|30077|30078|30079|30080|30081|30082|30083|30084|30085|30086|30087|30088|30089|30090|30091|30092|30093|" default="3" />
-		<setting id="epgtimer_duration" type="labelenum" label="30063" values="10 min|15 min|20 min|25 min|30 min|35 min|40 min|45 min" default="20 min" />
-		<setting id="separator" type="sep" />
-		<setting id="epg_grab_ext" type="bool" label="30060" default="false" />
-		<setting id="epg_socket_path" type="text" label="30058" default="/home/hts/.hts/tvheadend/epggrab/pyepg.sock" enable="eq(-1,true)" />
-		<setting id="store_epg" type="bool" label="30064" default="false" enable="eq(-2,true)" />
-		<setting id="epg_path" type="folder" label="30059" option="writeable" enable="eq(-3,true) + eq(-1,true)" />
-	</category>
+<?xml version="1.0" ?>
+<settings version="1">
+	<section id="service.tvh.manager">
+		<category id="general" label="30050" help="">
+			<group id="1">
+				<setting id="margin_start" type="integer" label="30000" help="">
+					<level>0</level>
+					<default>1</default>
+					<constraints>
+						<options>
+							<option label="30108">1</option>
+							<option label="30109">2</option>
+							<option label="30110">3</option>
+							<option label="30111">4</option>
+							<option label="30112">5</option>
+						</options>
+					</constraints>
+					<control type="spinner" format="string"/>
+				</setting>
+				<setting id="margin_stop" type="integer" label="30001" help="">
+					<level>0</level>
+					<default>1</default>
+					<constraints>
+						<options>
+							<option label="30108">1</option>
+							<option label="30109">2</option>
+							<option label="30110">3</option>
+							<option label="30111">4</option>
+							<option label="30112">5</option>
+						</options>
+					</constraints>
+					<control type="spinner" format="string"/>
+				</setting>
+			</group>
+			<group id="2">
+				<setting id="next_schedule" type="boolean" label="30007" help="">
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle"/>
+				</setting>
+			</group>
+			<group id="3">
+				<setting id="idle_shutdown" type="integer" label="30002" help="">
+					<level>0</level>
+					<default>30</default>
+					<constraints>
+						<options>
+							<option label="30112">5</option>
+							<option label="30113">10</option>
+							<option label="30114">15</option>
+							<option label="30115">20</option>
+							<option label="30116">25</option>
+							<option label="30117">30</option>
+							<option label="30118">35</option>
+							<option label="30119">40</option>
+							<option label="30120">45</option>
+              <option label="30121">60</option>
+						</options>
+					</constraints>
+					<control type="spinner" format="string"/>
+				</setting>
+				<setting id="shutdown_countdown" type="integer" label="30003" help="">
+					<level>0</level>
+					<default>10</default>
+					<constraints>
+						<options>
+							<option label="30130">10</option>
+							<option label="30131">15</option>
+							<option label="30132">30</option>
+							<option label="30133">45</option>
+							<option label="30134">60</option>
+						</options>
+					</constraints>
+					<control type="spinner" format="string"/>
+				</setting>
+			</group>
+			<group id="4">
+				<setting id="network" type="boolean" label="30034" help="">
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle"/>
+				</setting>
+				<setting id="monitored_ports" type="string" label="30037" help="">
+					<level>0</level>
+					<default/>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="network">true</condition>
+						</dependency>
+					</dependencies>
+					<control type="edit" format="string">
+						<heading>30037</heading>
+					</control>
+				</setting>
+			</group>
+			<group id="5">
+				<setting id="postprocessor_enable" type="boolean" label="30035" help="">
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle"/>
+				</setting>
+				<setting id="processor_list" type="string" label="30036" help="">
+					<level>0</level>
+					<default/>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="postprocessor_enable">true</condition>
+						</dependency>
+					</dependencies>
+					<control type="edit" format="string">
+						<heading>30036</heading>
+					</control>
+				</setting>
+			</group>
+		</category>
+		<category id="mail" label="30052" help="">
+			<group id="1">
+				<setting id="smtp_sendmail" type="boolean" label="30040" help="">
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle"/>
+				</setting>
+			</group>
+			<group id="2">
+				<setting id="smtp_server" type="string" label="30041" help="">
+					<level>0</level>
+					<default/>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="smtp_sendmail">true</condition>
+						</dependency>
+					</dependencies>
+					<control type="edit" format="string">
+						<heading>30041</heading>
+					</control>
+				</setting>
+				<setting id="smtp_user" type="string" label="30042" help="">
+					<level>0</level>
+					<default/>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="smtp_sendmail">true</condition>
+						</dependency>
+					</dependencies>
+					<control type="edit" format="string">
+						<heading>30042</heading>
+					</control>
+				</setting>
+				<setting id="smtp_passwd" type="string" label="30043" help="">
+					<level>0</level>
+					<default/>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="smtp_sendmail">true</condition>
+						</dependency>
+					</dependencies>
+					<control type="edit" format="string">
+						<heading>30043</heading>
+						<hidden>true</hidden>
+					</control>
+				</setting>
+				<setting id="smtp_encryption" type="string" label="30049" help="">
+					<level>0</level>
+					<default>SSL/TLS</default>
+					<constraints>
+						<options>
+							<option label="STARTTLS">STARTTLS</option>
+							<option label="SSL/TLS">SSL/TLS</option>
+							<option label="None">None</option>
+						</options>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="smtp_sendmail">true</condition>
+						</dependency>
+					</dependencies>
+					<control type="spinner" format="string"/>
+				</setting>
+			</group>
+			<group id="3">
+				<setting id="smtp_from" type="string" label="30044" help="">
+					<level>0</level>
+					<default/>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="smtp_sendmail">true</condition>
+						</dependency>
+					</dependencies>
+					<control type="edit" format="string">
+						<heading>30044</heading>
+					</control>
+				</setting>
+				<setting id="smtp_to" type="string" label="30045" help="">
+					<level>0</level>
+					<default/>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="smtp_sendmail">true</condition>
+						</dependency>
+					</dependencies>
+					<control type="edit" format="string">
+						<heading>30045</heading>
+					</control>
+				</setting>
+				<setting id="charset" type="string" label="30048" help="">
+					<level>0</level>
+					<default>ISO-8859-1</default>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="smtp_sendmail">true</condition>
+						</dependency>
+					</dependencies>
+					<control type="edit" format="string">
+						<heading>30048</heading>
+					</control>
+				</setting>
+				<setting id="checksettings" type="action" label="30054" help="">
+					<level>0</level>
+					<default/>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="smtp_sendmail">true</condition>
+						</dependency>
+					</dependencies>
+					<data>RunScript(service.tvh.manager,checkmailsettings)</data>
+					<control type="button" format="action">
+						<close>true</close>
+					</control>
+				</setting>
+			</group>
+		</category>
+		<category id="epg update" label="30053" help="">
+			<group id="1">
+				<setting id="epgtimer_interval" type="integer" label="30061" help="">
+					<level>0</level>
+					<default>1</default>
+					<constraints>
+						<options>
+							<option label="30100">0</option>
+							<option label="30101">1</option>
+							<option label="30102">2</option>
+							<option label="30103">3</option>
+							<option label="30104">4</option>
+							<option label="30105">5</option>
+							<option label="30106">6</option>
+							<option label="30107">7</option>
+						</options>
+					</constraints>
+					<control type="spinner" format="string"/>
+				</setting>
+				<setting id="epgtimer_time" type="integer" label="30062" help="">
+					<level>0</level>
+					<default>3</default>
+					<constraints>
+						<options>
+							<option label="30070">0</option>
+							<option label="30071">1</option>
+							<option label="30072">2</option>
+							<option label="30073">3</option>
+							<option label="30074">4</option>
+							<option label="30075">5</option>
+							<option label="30076">6</option>
+							<option label="30077">7</option>
+							<option label="30078">8</option>
+							<option label="30079">9</option>
+							<option label="30080">10</option>
+							<option label="30081">11</option>
+							<option label="30082">12</option>
+							<option label="30083">13</option>
+							<option label="30084">14</option>
+							<option label="30085">15</option>
+							<option label="30086">16</option>
+							<option label="30087">17</option>
+							<option label="30088">18</option>
+							<option label="30089">19</option>
+							<option label="30090">20</option>
+							<option label="30091">21</option>
+							<option label="30092">22</option>
+							<option label="30093">23</option>
+						</options>
+					</constraints>
+					<control type="spinner" format="string"/>
+				</setting>
+				<setting id="epgtimer_duration" type="integer" label="30063" help="">
+					<level>0</level>
+					<default>20</default>
+					<constraints>
+						<options>
+							<option label="30113">10</option>
+							<option label="30114">15</option>
+							<option label="30115">20</option>
+							<option label="30116">25</option>
+							<option label="30117">30</option>
+							<option label="30118">35</option>
+							<option label="30119">40</option>
+							<option label="30120">45</option>
+						</options>
+					</constraints>
+					<control type="spinner" format="string"/>
+				</setting>
+			</group>
+			<group id="2">
+				<setting id="epg_grab_ext" type="boolean" label="30060" help="">
+					<level>0</level>
+					<default>false</default>
+					<control type="toggle"/>
+				</setting>
+				<setting id="epg_socket_path" type="string" label="30058" help="">
+					<level>0</level>
+					<default>/home/hts/.hts/tvheadend/epggrab/pyepg.sock</default>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="epg_grab_ext">true</condition>
+						</dependency>
+					</dependencies>
+					<control type="edit" format="string">
+						<heading>30058</heading>
+					</control>
+				</setting>
+				<setting id="store_epg" type="boolean" label="30064" help="">
+					<level>0</level>
+					<default>false</default>
+					<dependencies>
+						<dependency type="enable">
+							<condition operator="is" setting="epg_grab_ext">true</condition>
+						</dependency>
+					</dependencies>
+					<control type="toggle"/>
+				</setting>
+				<setting id="epg_path" type="path" label="30059" help="">
+					<level>0</level>
+					<default/>
+					<constraints>
+						<allowempty>true</allowempty>
+					</constraints>
+					<dependencies>
+						<dependency type="enable">
+							<and>
+								<condition operator="is" setting="epg_grab_ext">true</condition>
+								<condition operator="is" setting="store_epg">true</condition>
+							</and>
+						</dependency>
+					</dependencies>
+					<control type="button" format="path">
+						<heading>30059</heading>
+					</control>
+				</setting>
+			</group>
+		</category>
+	</section>
 </settings>

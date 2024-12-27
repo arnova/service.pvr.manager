@@ -32,12 +32,6 @@ RESUME_MARGIN = 15
 # within OFF_ON_MARGIN minutes
 OFF_ON_MARGIN = 5
 
-# Amount of minutes idle after which we'll (auto) shutdown
-IDLE_SHUTDOWN = 30
-
-# Countdown time in seconds when idle timer expires and automatically shutting down
-IDLE_COUNTDOWN_TIME = 10
-
 RTC_WAKEUP_CMD = xbmcvfs.translatePath(os.path.join(__path__, 'resources', 'lib', 'rtc_wakeup.sh'))
 EXTGRABBER = xbmcvfs.translatePath(os.path.join(__path__, 'resources', 'lib', 'epggrab_ext.sh'))
 
@@ -341,7 +335,7 @@ class Manager(object):
         if self.__dialog_pb is None:
             self.__dialog_pb = xbmcgui.DialogProgressBG()
             self.__dialog_pb.create(__LS__(30010), "")
-        self.__auto_mode_set = IDLE_COUNTDOWN_TIME
+        self.__auto_mode_set = self.__shutdowncountdown
         self.__auto_mode_counter = 0
         xbmc.executebuiltin('InhibitScreensaver(true)')
 
@@ -465,8 +459,8 @@ class Manager(object):
         self.__postrun = tools.getAddonSetting('margin_stop', sType=tools.NUM)
         self.__nextsched = tools.getAddonSetting('next_schedule', sType=tools.BOOL)
 
-        # TVHeadend server
-        self.__maxattempts = tools.getAddonSetting('conn_attempts', sType=tools.NUM)  # FIXME: No longer used
+        self.__idleshutdown = tools.getAddonSetting('idle_shutdown', sType=tools.NUM)
+        self.__shutdowncountdown = tools.getAddonSetting('shutdown_countdown', sType=tools.NUM)
 
         # check if network activity has to observed
         self.__network = tools.getAddonSetting('network', sType=tools.BOOL)
@@ -668,7 +662,7 @@ class Manager(object):
                     else:
                         idle_timer += 1
                         tools.writeLog('No user activity for %s minutes' % idle_timer)
-                        if idle_timer > IDLE_SHUTDOWN:
+                        if self.__idleshutdown > 0 and idle_timer > self.__idleshutdown:
                             tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
                             idle_timer = 0    # In case powerdown is aborted by user
                             self.enableAutoMode()  # Enable auto-mode (also for countdown dialog)
