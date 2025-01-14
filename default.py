@@ -659,13 +659,13 @@ class Manager(object):
                     if xbmc.getCondVisibility('Player.Playing') or self.__auto_mode_set:
                         tools.writeLog('Player is playing or automode set, resetting idle timer')
                         idle_timer = 0
+                    elif self.__idleshutdown > 0 and idle_timer > self.__idleshutdown:
+                        tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
+                        idle_timer = 0    # In case powerdown is aborted by user
+                        self.enableAutoMode()  # Enable auto-mode (also for countdown dialog)
                     else:
                         idle_timer += 1
                         tools.writeLog('No user activity for %s minutes' % idle_timer)
-                        if self.__idleshutdown > 0 and idle_timer > self.__idleshutdown:
-                            tools.writeLog('No user activity detected for %s minutes. Powering down' % idle_timer)
-                            idle_timer = 0    # In case powerdown is aborted by user
-                            self.enableAutoMode()  # Enable auto-mode (also for countdown dialog)
 
             if power_off:
                 # Set power off event. This is in case suspend in the shutdown script fails,
