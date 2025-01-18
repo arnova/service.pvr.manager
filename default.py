@@ -438,7 +438,7 @@ class Manager(object):
         tools.writeLog('Instruct the system to shut down', xbmc.LOGINFO)
         xbmc.executebuiltin('ShutDown')
 #        xbmc.executebuiltin('Suspend')
-        xbmc.sleep(1000)
+
 
     def checkOutdatedRecordings(self, mode):
         nodedata = self.readStatusXML('title')
@@ -668,7 +668,7 @@ class Manager(object):
                         tools.writeLog('No user activity for %s minutes' % idle_timer)
 
             if power_off:
-                # Set power off event. This is in case suspend in the shutdown script fails,
+                # Set power off event. This is in case suspend/shutdown somehow fails,
                 # as a fallback it will then reboot and immediately power off
                 self.setPowerOffEvent()
 
@@ -677,14 +677,17 @@ class Manager(object):
 
                 # Set RTC wakeup & shutdown system and continue as soon as it resumes again
                 if self.setWakeup():
-                    # NOTE: setWakeup() will block when the system suspends
+                    # NOTE: Shutdown() will block when the system suspends
                     self.ShutDown()
                     # From here is where we continue
+                    tools.writeLog('Resume point passed', level=xbmc.LOGINFO)
+                    xbmc.sleep(2000)
                     resumed = True                    # Notify next iteration we have resumed from suspend
                     uit.IsUserActive()                # Reset user active event
                     resume_last = int(time.time())    # Save resume time for later use
                     self.getPowerOffEvent()           # Reset power off event
-                    tools.writeLog('Resume point passed', level=xbmc.LOGINFO)
+                else:
+                    tools.Notify().notify(__LS__(30025), __LS__(30026), icon=xbmcgui.NOTIFICATION_ERROR)  # FIXME
 
                 power_off = False       # Reset power off flag
 

@@ -35,7 +35,7 @@
 			<group id="2">
 				<setting id="next_schedule" type="boolean" label="30007" help="">
 					<level>0</level>
-					<default>false</default>
+					<default>true</default>
 					<control type="toggle"/>
 				</setting>
 			</group>

@@ -39,7 +39,7 @@ msgid "Idle time for automatic shutdown"
 msgstr ""
 
 msgctxt "#30003"
-msgid "Display time for shutdown-notification"
+msgid "Display time for shutdown notification"
 msgstr ""
 
 msgctxt "#30004"
@@ -83,7 +83,7 @@ msgid "Shutdown postponed"
 msgstr ""
 
 msgctxt "#30016"
-msgid "upcoming Recording"
+msgid "Upcoming recording"
 msgstr ""
 
 msgctxt "#30017"
@@ -99,15 +99,15 @@ msgid "%s - EPG-Update"
 msgstr ""
 
 msgctxt "#30020"
-msgid "running or upcoming Recording"
+msgid "Running or upcoming recording"
 msgstr ""
 
 msgctxt "#30021"
-msgid "EPG-Update still active"
+msgid "EPG-update still active"
 msgstr ""
 
 msgctxt "#30022"
-msgid "At least one monitored Process active"
+msgid "At least one monitored process active"
 msgstr ""
 
 msgctxt "#30023"
@@ -118,10 +118,18 @@ msgctxt "#30024"
 msgid "Setting next timer at"
 msgstr ""
 
-#empty strings from id 30025 to 30029
+msgctxt "#30025"
+msgid "RTC wakeup error"
+msgstr ""
+
+msgctxt "#30026"
+msgid "Unable to write RTC wakeup file"
+msgstr ""
+
+#empty strings from id 30026 to 30029
 
 msgctxt "#30030"
-msgid "Communication Error"
+msgid "Communication error"
 msgstr ""
 
 msgctxt "#30031"
