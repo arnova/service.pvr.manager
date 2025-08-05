@@ -67,7 +67,7 @@ def getAddonSetting(setting, sType=STRING, multiplicator=1):
         _ret =  True if xbmcaddon.Addon().getSetting(setting).upper() == 'TRUE' else False
     elif sType == NUM:
         try:
-            _ret = int(re.match('\d+', xbmcaddon.Addon().getSetting(setting)).group()) * multiplicator
+            _ret = int(re.match(r'\d+', xbmcaddon.Addon().getSetting(setting)).group()) * multiplicator
         except AttributeError:
             _ret = 0
     else:
