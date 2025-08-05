@@ -221,7 +221,7 @@ class Manager(object):
                     attempts -= 1
                     if attempts > 0:
                         tools.writeLog('%s unreachable, remaining attempts: %s' % (self.__server, attempts))
-                        xbmc.sleep(5000)
+                        xbmc.sleep(3000)
                         continue
                     else:
                         tools.writeLog('%s unreachable, retry next round' % self.__server)
@@ -548,7 +548,7 @@ class Manager(object):
             # Need to keep updating setting as they may be changed in the GUI while running
             self.loadSettings()
 
-            if (resumed or first_start) and self.updateSysState(verbose=True):
+            if (resumed or first_start) and self.updateSysState(verbose=True, retry=True):
                 # Check if we resumed automatically
                 if self.__flags:
                     self.enableAutoMode()
