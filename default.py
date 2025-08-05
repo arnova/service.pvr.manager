@@ -32,6 +32,9 @@ RESUME_MARGIN = 15
 # within OFF_ON_MARGIN minutes
 OFF_ON_MARGIN = 5
 
+# Amount of retries
+RETRIES = 5
+
 RTC_WAKEUP_CMD = xbmcvfs.translatePath(os.path.join(__path__, 'resources', 'lib', 'rtc_wakeup.sh'))
 EXTGRABBER = xbmcvfs.translatePath(os.path.join(__path__, 'resources', 'lib', 'epggrab_ext.sh'))
 
@@ -185,36 +188,47 @@ class Manager(object):
 
     # Connect to TVHeadend and establish connection (log in))
 
-    def __getPvrStatusXML(self):
+    def __getPvrStatusXML(self, retry=False):
+        attempts = RETRIES if retry else 1
+
         if not self.hasPVR:
             tools.writeLog('No HTS PVR client installed or inactive', level=xbmc.LOGERROR)
             tools.Notify().notify(__LS__(30030), __LS__(30032), icon=xbmcgui.NOTIFICATION_ERROR)
             self.__xml = None
             return False
         else:
-            # try DigestAuth as first, as this is the default auth on TVH > 3.9
-            try:
-                conn = requests.get('http://%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPDigestAuth(self.__user, self.__pass))
-                conn.close()
-                if conn.status_code == 200:
-#                        tools.writeLog('Getting status.xml (Digest Auth)')
-                    self.__xml = conn.content
-                    return True
-                else:
-                    # try BasicAuth as older method
-                    conn = requests.get('http://%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPBasicAuth(self.__user, self.__pass))
+            while self.hasPVR and attempts > 0:
+                # try DigestAuth as first, as this is the default auth on TVH > 3.9
+                try:
+                    conn = requests.get('http://%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPDigestAuth(self.__user, self.__pass))
                     conn.close()
                     if conn.status_code == 200:
-#                            tools.writeLog('Getting status.xml (Basic Auth)')
+    #                        tools.writeLog('Getting status.xml (Digest Auth)')
                         self.__xml = conn.content
                         return True
+                    else:
+                        # try BasicAuth as older method
+                        conn = requests.get('http://%s:%s/status.xml' % (self.__server, self.__port), auth=requests.auth.HTTPBasicAuth(self.__user, self.__pass))
+                        conn.close()
+                        if conn.status_code == 200:
+    #                            tools.writeLog('Getting status.xml (Basic Auth)')
+                            self.__xml = conn.content
+                            return True
 
-                if conn.status_code == 401:
-                    tools.writeLog('Unauthorized access (401)')
-            except requests.ConnectionError:
-                tools.writeLog('%s unreachable, retry next round' % self.__server)
+                    if conn.status_code == 401:
+                        tools.writeLog('Unauthorized access (401)')
+                except requests.ConnectionError:
+                    attempts -= 1
+                    if attempts > 0:
+                        tools.writeLog('%s unreachable, remaining attempts: %s' % (self.__server, attempts))
+                        xbmc.sleep(5000)
+                        continue
+                    else:
+                        tools.writeLog('%s unreachable, retry next round' % self.__server)
 
-#        tools.Notify().notify(__LS__(30030), __LS__(30031), icon=xbmcgui.NOTIFICATION_ERROR)  # FIXME
+        if retry:
+            tools.Notify().notify(__LS__(30030), __LS__(30031), icon=xbmcgui.NOTIFICATION_ERROR)
+
         self.__xml = None
         return False
 
@@ -269,9 +283,9 @@ class Manager(object):
             elif self.__wakeUpUTRec > 0:
                 self.__wakeUpUT = self.__wakeUpUTRec
 
-    def updateSysState(self, Net=True, verbose=False):
+    def updateSysState(self, Net=True, verbose=False, retry=False):
         # Update status xml from tvh
-        if not self.__getPvrStatusXML():
+        if not self.__getPvrStatusXML(retry):
             return False
 
         # Reset flags
@@ -534,10 +548,7 @@ class Manager(object):
             # Need to keep updating setting as they may be changed in the GUI while running
             self.loadSettings()
 
-            if resumed or first_start:
-                # Get updated system state (and store new status)
-                self.updateSysState(verbose=True)
-
+            if (resumed or first_start) and self.updateSysState(verbose=True):
                 # Check if we resumed automatically
                 if self.__flags:
                     self.enableAutoMode()
@@ -617,27 +628,26 @@ class Manager(object):
                             xbmc.Player().stop()
 
                         # Make sure system state is updated
-                        self.updateSysState(verbose=True)
-
-                        if (self.__flags & isREC):
-                            tools.Notify().notify(__LS__(30015), __LS__(30020), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Recording in progress'
-                            tools.writeLog('Recording in progress: Postponing poweroff with automode', level=xbmc.LOGINFO)
-                            self.enableAutoMode()
-                        elif (self.__flags & isEPG):
-                            tools.Notify().notify(__LS__(30015), __LS__(30021), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'EPG-Update'
-                            tools.writeLog('EPG-update in progress: Postponing poweroff with automode', level=xbmc.LOGINFO)
-                            self.enableAutoMode()
-                        elif (self.__flags & isPRG):
-                            tools.Notify().notify(__LS__(30015), __LS__(30022), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Postprocessing'
-                            tools.writeLog('Postprocessing in progress: Postponing poweroff with automode', level=xbmc.LOGINFO)
-                            self.enableAutoMode()
-                        elif (self.__flags & isNET):
-                            tools.Notify().notify(__LS__(30015), __LS__(30023), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Network active'
-                            tools.writeLog('Network active: Postponing poweroff with automode', level=xbmc.LOGINFO)
-                            self.enableAutoMode()
-                        else:
-                            power_off = True
-                            break # Break wait loop so we can perform power off
+                        if self.updateSysState(verbose=True, retry=True):
+                            if (self.__flags & isREC):
+                                tools.Notify().notify(__LS__(30015), __LS__(30020), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Recording in progress'
+                                tools.writeLog('Recording in progress: Postponing poweroff with automode', level=xbmc.LOGINFO)
+                                self.enableAutoMode()
+                            elif (self.__flags & isEPG):
+                                tools.Notify().notify(__LS__(30015), __LS__(30021), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'EPG-Update'
+                                tools.writeLog('EPG-update in progress: Postponing poweroff with automode', level=xbmc.LOGINFO)
+                                self.enableAutoMode()
+                            elif (self.__flags & isPRG):
+                                tools.Notify().notify(__LS__(30015), __LS__(30022), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Postprocessing'
+                                tools.writeLog('Postprocessing in progress: Postponing poweroff with automode', level=xbmc.LOGINFO)
+                                self.enableAutoMode()
+                            elif (self.__flags & isNET):
+                                tools.Notify().notify(__LS__(30015), __LS__(30023), icon=xbmcgui.NOTIFICATION_WARNING)  # Notify 'Network active'
+                                tools.writeLog('Network active: Postponing poweroff with automode', level=xbmc.LOGINFO)
+                                self.enableAutoMode()
+                            else:
+                                power_off = True
+                                break # Break wait loop so we can perform power off
             # Wait loop ends
 
             if not power_off:
