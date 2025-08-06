@@ -574,6 +574,7 @@ class Manager(object):
                             tools.writeLog('Could not start external EPG grabber script', level=xbmc.LOGERROR)
 
                 if resumed and os.path.isfile(RESUME_SCRIPT):
+                    xbmc.sleep(5000)  # Hack to prevent possible busy dialog deadlock
                     _user_idle = not uit.IsUserActive(False)
                     xbmc.executebuiltin("RunScript(%s, %s, %s)" % (RESUME_SCRIPT, int(self.__auto_mode_set), int(_user_idle)))
 
